@@ -10,6 +10,7 @@
 # - DBCheckCommand          What command to use for doing a database integrity check   (example: 'docker exec -it db_docker mariadb-check -c --all-databases')
 # - SQLUser                 What user to log in as                                     (example: 'root')
 # - DATABASE_PASSWORD       Password for the database for the above user (obviously)
+# - DB_ROOT                 Root directory for the database                            (example: /data/moodle_mariadb)
 # - ServerName              Must not be a true DNS name!                               (example: 'my database server')
 # - Recipient               Email address to recipient                                 (example: 'john.doe@example.org')
 # - ReportHead              HTML-head to use for the report                            (example: 'https://fileadmin.cs.lth.se/intern/backup/custom_report_head.html')
@@ -17,8 +18,8 @@
 # - jobe_th_c               Color for the table head text color                        (example: 'white')
 # - box_h_bgc               Color for the box head background color                    (example: '3E6E93')
 # - box_h_c                 Color for the box head text color                          (example: 'white')
-if [ -r ~/.sql_report.settings ]; then
-    source ~/.sql_report.settings
+if [ -r ~/.sql_info.settings ]; then
+    source ~/.sql_info.settings
 else
     echo "Settings file not found. Will exit!"
     exit 1
@@ -94,7 +95,7 @@ notify() {
 time_convert() {
     local Secs=$1
     local TimeRaw="$((Secs/86400)) days $((Secs/3600%24)) hours $((Secs%3600/60)) min $((Secs%60)) sec"
-    echo "$(echo "$TimeRaw" | sed 's/^0 days//;s/ 0 hours//;s/ 0 min//;s/ 0 sec//')"
+    echo "$(echo "$TimeRaw" | sed 's/^0 days//;s/ 0 hours//;s/ 0 min//;s/ 0 sec//;s/^ //')"
 }
 # Ex: time_convert 285366 -> 3 days 7 hour 16 min 6 sec
 
@@ -182,7 +183,7 @@ platform_info() {
     DiskFreeGiB="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $((DiskFreeKiB*1024)) | sed 's/^ //;s/GiB/ GiB/')"         # Ex: DiskFreeGiB='108.2 GiB'
     DiskFStype="$(echo "$DFStr" | awk '{print $2}')"                                                                        # Ex: DiskFStype=xfs
     DBDirVolume="$(du -skh "$DB_ROOT" | awk '{print $1}' | sed 's/G/ GiB/')"                                                # Ex: DBDirVolume='58 GB'
-    DiskInfoString="        <tr><td>Disk info:</td><td>Database directory <code>$DB_ROOT</code> occupies $DBDirVolume.<br><i>$DiskreePercent (DiskFreeGiB) free on <code>$DiskFS</code> and uses <code>$DiskFStype</code> file system.</i></td></tr>"
+    DiskInfoString="        <tr><td>Disk info:</td><td>Database directory <code>$DB_ROOT</code> occupies $DBDirVolume.<br><i>$DiskreePercent ($DiskFreeGiB) is free on <code>$DiskFS</code> and uses <code>$DiskFStype</code> file system.</i></td></tr>"
 
     # Assemble environment string:
     EnvironmentStr="        <tr><td>Operating system:</td><td>$OS$SepatarorStr$PlatformStr</td></tr>"
@@ -562,10 +563,11 @@ get_database_overview() {
     DatabaseTblString="<tr><th align=\"right\" colspan="2">Databases &amp; tables</th></tr>$NL
         <tr><td colspan="2">The following $NumDB databases exists:</td></tr>$NL
         <tr><td colspan="2"><table>$NL
-        <tr><td><b>Database</b>&nbsp;&#8595;</td><td align=\"right\"><b>Num. tables</b></td><td align=\"right\"><b>&sum; rows</b></td><td align=\"right\"><b>&sum; DATA_LENGTH [B]</b></td><td><b>Table collation</b></td><td><b>Created</b></td><td><b>Storage engine</b></td></tr>$NL"
+        <tr><td><b>Database</b>&nbsp;&#8595;</td><td align=\"right\"><b>Num. tables</b></td><td align=\"right\"><b>&sum; rows</b></td><td align=\"right\"><b>&sum; table data [B]</b></td><td><b>Data on disk</b></td><td><b>Table collation</b></td><td><b>Created</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read DB NumTables SumRows SumDataLength DataFree Collation CreateTime UpdateTime Engine
     do
-        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
+        DatabaseDiskVolume="$(du -skh $DB_ROOT/$DB 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"                            # Ex: DatabaseDiskVolume='48 GiB'
+        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">${DatabaseDiskVolume:-0}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
     DatabaseTblString+="</table></td></tr>"
 
@@ -582,10 +584,11 @@ get_database_overview() {
     # Create the table part:
     DatabaseTblString+="<tr><td colspan=\"2\">The five largest tables:
     <table>
-    <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td><b>&sum; size [MB]</b></td><td><b>Fragmentation</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
+    <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td><b>&sum; size [MB]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
-        DatabaseTblString+="<tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$Fragmentation %</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
+        TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}.ibd 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
+        DatabaseTblString+="<tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$Fragmentation %</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
     DatabaseTblString+="</table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
             <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>$NL"
@@ -671,7 +674,8 @@ get_daemon_info() {
     DaemonInfoStr+="<tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
     DaemonInfoStr+="<tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
     DaemonInfoStr+="<tr><td>Computer boot time:</td><td>$UptimeSince</td></tr>$NL"
-    DaemonInfoStr+="$OpenConnectionTblPart"
+    DaemonInfoStr+="$OpenConnectionTblPart$NL"
+    DaemonInfoStr+="$DiskInfoString"
 }
 
 
@@ -750,13 +754,17 @@ assemble_web_page() {
 #   \____/ |_|     \___|  \__,_|  \__|  \___|     \___/\/    |___/  \___| |_| |_|  \__,_|     \___| |_| |_| |_|  \__,_| |_| |_|
 
 email_html_create_send() {
-    EmailTempFile=$(mktemp /tmp/sql-check.XXXX)
+    EmailTempFile=$(mktemp /tmp/sql-info.XXXX)
 
-    # Get the status of the whole operation
-    if [ $ES_mariadb_check -eq 0 ]; then
-        Status="Database verification OK"
+    if $Verify; then
+        # Get the status of the whole operation
+        if [ $ES_mariadb_check -eq 0 ]; then
+            Status="Database verification OK"
+        else
+            Status="Database NOT verified ok"
+        fi
     else
-        Status="Database NOT verified ok"
+        Status="SQL info for $ServerName"
     fi
 
     # Set the headers in order to use sendmail
@@ -808,3 +816,5 @@ get_database_overview
 get_daemon_info
 
 email_html_create_send
+
+rm $EmailTempFile
