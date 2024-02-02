@@ -206,7 +206,7 @@ platform_info() {
     NbrCPUs=$(grep -Ec "^processor" /proc/cpuinfo)                                                                          # Ex: NbrCPUs=4
 
     # Assemble environment string:
-    EnvironmentStr="        <tr><td>Operating system:</td><td>$OS$SepatarorStr$PlatformStr</td></tr>"
+    EnvironmentStr="        <tr><td>Operating system:</td><td>$OS$SepatarorStr$PlatformStr$SepatarorStr$NbrCPUs logical processors$SepatarorStr$((RAM /1000000)) GB of RAM</td></tr>"
 }
 
 
@@ -574,7 +574,7 @@ get_database_overview() {
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
         TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}.ibd 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
-        DatabaseTblString+="<tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$Fragmentation %</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
+        DatabaseTblString+="        <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$Fragmentation %</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
     DatabaseTblString+="</table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
             <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>$NL"
@@ -597,16 +597,16 @@ get_database_overview() {
     #                   docker-proxy 1639 root IPv6 TCP *:mysql (LISTEN)'
 
     # Create the table part:
-    OpenConnectionTblPart="<tr><td>Network port:</td><td><code>$Port</code>:
-              <table>
-              <tr><td><b>Command</b></td><td><b>PID</b></td><td><b>User</b></td><td><b>Type</b></td><td><b>Node</b></td><td><b>Name</b></td></tr>"
+    OpenConnectionTblPart="        <tr><td>Network port:</td><td><code>$Port</code>:
+        <table>
+            <tr><td><b>Command</b></td><td><b>PID</b></td><td><b>User</b></td><td><b>Type</b></td><td><b>Node</b></td><td><b>Name</b></td></tr>"
     while read -r Command PID User Type Node Name
     do
-        OpenConnectionTblPart+="<tr><td>$Command</td><td>$PID</td><td>$User</td><td>$Type</td><td>$Node</td><td>$Name</td></tr>$NL"
+        OpenConnectionTblPart+="            <tr><td>$Command</td><td>$PID</td><td>$User</td><td>$Type</td><td>$Node</td><td>$Name</td></tr>$NL"
     done <<< "$OpenSQLPorts"
     # Ex: OpenConnectionTblPart='<tr><td>docker-proxy</td><td>1629</td><td>root</td><td>IPv4</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>
     #                            <tr><td>docker-proxy</td><td>1639</td><td>root</td><td>IPv6</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>'
-    OpenConnectionTblPart+="</table></td></tr>"
+    OpenConnectionTblPart+="        </table></td></tr>"
 
     # MASTER / SLAVE
     MasterStatus="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW MASTER STATUS;")"   # Ex: MasterStatus=  || MasterStatus='mariadb-bin.000599 542526335'
@@ -653,13 +653,13 @@ get_daemon_info() {
     # Assemble the DaemonInfoStr
     DaemonInfoStr="<tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
     DaemonInfoStr+="$EnvironmentStr"
-    DaemonInfoStr+="<tr><td>Daemon:</td><td><code>$RunningDaemon</code></td></tr>$NL"
-    DaemonInfoStr+="<tr><td>PID:</td><td><code>$RunningDaemonPID</code></td></tr>$NL"
-    DaemonInfoStr+="<tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB (of $((RAM /1000000)) GB)</td></tr>$NL"
-    DaemonInfoStr+="<tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
-    DaemonInfoStr+="<tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
-    DaemonInfoStr+="<tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
-    DaemonInfoStr+="<tr><td>Computer boot time:</td><td>$UptimeSince</td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>PID:</td><td><code>$RunningDaemonPID</code></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>Computer boot time:</td><td>$UptimeSince</td></tr>$NL"
     DaemonInfoStr+="$OpenConnectionTblPart$NL"
     DaemonInfoStr+="$DiskInfoString"
 }
