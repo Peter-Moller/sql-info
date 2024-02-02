@@ -23,6 +23,9 @@
 # - SCP_DIR                 Directory to put the file in                               (example: '/var/www/html/sql')
 # - SCP_USER                User to copy as. Must be able to write in the dir!         (example: 'scp_user')
 
+# Must set SCP ahead of reading the settings file in order to be correct
+SCP=false
+
 if [ -r ~/.sql_info.settings ]; then
     source ~/.sql_info.settings
 else
@@ -279,7 +282,7 @@ version_ssl_library	The version of the TLS library that is being used"
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
         if [ "$VAR" = "binlog_expire_logs_seconds" ]; then
-            SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> (=$(time_convert $VALUE))</td><td><i>$EXPLANATION</i></td></tr>$NL"
+            SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td></tr>$NL"
         else
             SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
         fi
@@ -472,7 +475,7 @@ get_storage_engines() {
         TOTAL_SIZE="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $6}' | sed 's/GB/ GB/')"
         StorageEngineStr+="<tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
     done <<< "$StorageEngines"
-    StorageEngineStr+="$NL</table><p>Read an overview of <a href="https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html">storage engines</a></p></td></tr>$NL"
+    StorageEngineStr+="$NL</table><br><p><i>Read an overview of <a href="https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html">storage engines</a></i></p></td></tr>$NL"
 }
 
 
@@ -774,6 +777,25 @@ email_html_create_send() {
 
 }
 
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#   _____                                                          _   _
+#  /  __ \                                                        | | | |
+#  | /  \/   ___    _ __    _   _      _ __    ___   ___   _   _  | | | |_
+#  | |      / _ \  | '_ \  | | | |    | '__|  / _ \ / __| | | | | | | | __|
+#  | \__/\ | (_) | | |_) | | |_| |    | |    |  __/ \__ \ | |_| | | | | |_
+#   \____/  \___/  | .__/   \__, |    |_|     \___| |___/  \__,_| |_|  \__|
+#                  | |       __/ |
+#                  |_|      |___/
+
+copy_result() {
+    # Copy result if SCP=true
+    if $SCP; then
+        sed -n '5,$p' <"$EmailTempFile" >"${EmailTempFile}_scp"
+        scp "${EmailTempFile}_scp" "${SCP_USER}@${SCP_HOST}:${SCP_DIR}/${ServerName,,}.html" &>/dev/null
+    fi
+}
+
 #   _____   _   _  ______       _____  ______     ______   _   _   _   _   _____   _____   _____   _____   _   _   _____ 
 #  |  ___| | \ | | |  _  \     |  _  | |  ___|    |  ___| | | | | | \ | | /  __ \ |_   _| |_   _| |  _  | | \ | | /  ___|
 #  | |__   |  \| | | | | |     | | | | | |_       | |_    | | | | |  \| | | /  \/   | |     | |   | | | | |  \| | \ `--. 
@@ -804,5 +826,7 @@ get_database_overview
 get_daemon_info
 
 email_html_create_send
+
+copy_result
 
 rm $EmailTempFile
