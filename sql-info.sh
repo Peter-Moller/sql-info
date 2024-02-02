@@ -202,6 +202,9 @@ platform_info() {
     DBDirVolume="$(du -skh "$DB_ROOT" | awk '{print $1}' | sed 's/G/ GiB/')"                                                # Ex: DBDirVolume='58 GB'
     DiskInfoString="        <tr><td>Disk info:</td><td>Database directory <code>$DB_ROOT</code> occupies $DBDirVolume.<br><i>$DiskreePercent ($DiskFreeGiB) is free on <code>$DiskFS</code> and uses <code>$DiskFStype</code> file system.</i></td></tr>"
 
+    # CPU:
+    NbrCPUs=$(grep -Ec "^processor" /proc/cpuinfo)                                                                          # Ex: NbrCPUs=4
+
     # Assemble environment string:
     EnvironmentStr="        <tr><td>Operating system:</td><td>$OS$SepatarorStr$PlatformStr</td></tr>"
 }
@@ -653,7 +656,7 @@ get_daemon_info() {
     DaemonInfoStr+="<tr><td>Daemon:</td><td><code>$RunningDaemon</code></td></tr>$NL"
     DaemonInfoStr+="<tr><td>PID:</td><td><code>$RunningDaemonPID</code></td></tr>$NL"
     DaemonInfoStr+="<tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB (of $((RAM /1000000)) GB)</td></tr>$NL"
-    DaemonInfoStr+="<tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; “$RunningDaemonName”)</pre></td></tr>$NL"
+    DaemonInfoStr+="<tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
     DaemonInfoStr+="<tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
     DaemonInfoStr+="<tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
     DaemonInfoStr+="<tr><td>Computer boot time:</td><td>$UptimeSince</td></tr>$NL"
