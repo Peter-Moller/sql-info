@@ -278,7 +278,11 @@ version_ssl_library	The version of the TLS library that is being used"
     while read VAR EXPLANATION
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
-        SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+        if [ "$VAR" = "binlog_expire_logs_seconds" ]; then
+            SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> (=$(time_convert $VALUE))</td><td><i>$EXPLANATION</i></td></tr>$NL"
+        else
+            SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+        fi
     done <<< "$InterestingVariables"
     SQLVariableStr+="        </table></td></tr>$NL"
 
@@ -468,7 +472,7 @@ get_storage_engines() {
         TOTAL_SIZE="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $6}' | sed 's/GB/ GB/')"
         StorageEngineStr+="<tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
     done <<< "$StorageEngines"
-    StorageEngineStr+="$NL</table></td></tr>$NL"
+    StorageEngineStr+="$NL</table><p>Read an overview of <a href="https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html">storage engines</a></p></td></tr>$NL"
 }
 
 
