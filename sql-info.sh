@@ -640,7 +640,7 @@ get_database_overview() {
 #   \____/  \___|  \__|     \__,_|  \__,_|  \___| |_| |_| |_|  \___/  |_| |_|    |_| |_| |_| |_|    \___/ 
 
 get_daemon_info() {
-    RunningDaemonLine="$(ps -ef n | grep -Ei "[m]ysqld|[m]ariadbd")"                                              # Ex: RunningDaemonLine='     999    2635    2594 33 04:46 ?        Ssl  126:15 mariadbd'
+    RunningDaemonLine="$(ps -ef n | grep -Ei "\b[m]ysqld\b|\b[m]ariadbd\b")"                                      # Ex: RunningDaemonLine='     999    2635    2594 33 04:46 ?        Ssl  126:15 mariadbd'
     #                                                                                                                                           UID     PID    PPID  C STIME TTY      STAT   TIME CMD
     RunningDaemonPID="$(echo "$RunningDaemonLine" | awk '{print $2}')"                                            # Ex: RunningDaemonPID=58310
     RunningDaemonMemRSS="$(ps --no-headers -o rss:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemRSS=398
