@@ -281,7 +281,7 @@ version_ssl_library	The version of the TLS library that is being used"
     while read VAR EXPLANATION
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
-        if [ "$VAR" = "binlog_expire_logs_seconds" ]; then
+        if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
             SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td></tr>$NL"
         else
             SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
@@ -520,7 +520,7 @@ do_mariadb_check() {
             DBCheckString+="<tr><td>Status:</td><td style=\"color: red;\">Corruption detected</td></tr>$NL"
             DBCheckString+="<tr><td colspan=\"2\">Details:<br><pre style=\"color: red;\">$MariaCheckErrors</pre></td></tr>$NL"
         fi
-        DBCheckString+="<tr><td>Time taken:</td><td>$DBCheckTime</td></tr>$NL"
+        DBCheckString+="<tr><td>Time taken:</td><td>${DBCheckTime:-0 sec}</td></tr>$NL"
     else
         DBCheckString=""
     fi
