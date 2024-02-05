@@ -200,9 +200,9 @@ platform_info() {
     DiskreePercent="$((100-$(echo "$DFStr" | awk '{print $6}' | cut -d% -f1)))%"                                            # Ex: DiskreePercent=36%
     DiskFS="$(echo "$DFStr" | awk '{print $1}')"                                                                            # Ex: DiskFS=/dev/mapper/vg1-data
     DiskFreeKiB="$(echo "$DFStr" | awk '{print $5}')"                                                                       # Ex: DiskFreeKiB=113453636
-    DiskFreeGiB="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $((DiskFreeKiB*1024)) | sed 's/^ //;s/GiB/ GiB/')"         # Ex: DiskFreeGiB='108.2 GiB'
+    DiskFreeGiB="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $((DiskFreeKiB*1024)) | sed 's/^ *//;s/GiB/ GiB/')"        # Ex: DiskFreeGiB='108.2 GiB'
     DiskFStype="$(echo "$DFStr" | awk '{print $2}')"                                                                        # Ex: DiskFStype=xfs
-    DBDirVolume="$(du -skh "$DB_ROOT" | awk '{print $1}' | sed 's/G/ GiB/')"                                                # Ex: DBDirVolume='58 GB'
+    DBDirVolume="$(du -skh "$DB_ROOT" | awk '{print $1}' | sed 's/G/ GiB/;s/M/ MiB/;s/K/ KiB/')"                            # Ex: DBDirVolume='58 GB'
     DiskInfoString="        <tr><td>Disk info:</td><td>Database directory <code>$DB_ROOT</code> occupies $DBDirVolume.<br><i>$DiskreePercent ($DiskFreeGiB) is free on <code>$DiskFS</code> and uses <code>$DiskFStype</code> file system.</i></td></tr>"
 
     # CPU:
@@ -560,7 +560,7 @@ get_database_overview() {
     while read DB NumTables SumRows SumDataLength DataFree Collation CreateTime UpdateTime Engine
     do
         DatabaseDiskVolume="$(du -skh $DB_ROOT/$DB 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"                            # Ex: DatabaseDiskVolume='48 GiB'
-        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">${DatabaseDiskVolume:-0}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
+        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
     DatabaseTblString+="</table></td></tr>"
 
@@ -580,7 +580,14 @@ get_database_overview() {
     <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td><b>&sum; size [MB]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
-        TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}.ibd 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
+        case "${StorageEngine,,}" in
+            "innodb" ) Extension="[Ii][Bb][Dd]";;
+            "aria" )   Extension="[Mm][Aa][Ii]";;
+            "myisam" ) Extension="[Mm][Yy][Dd]";;
+        esac
+        TableDiskVolumeB="$(ls -ls ${TableName}* | awk '{sum+=$6} END {print sum}')"               # Ex: TableDiskVolumeB=27816625772
+        #TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}."Extension" 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
+        TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26.0 GiB'
         DatabaseTblString+="        <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$Fragmentation %</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
     DatabaseTblString+="</table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
@@ -588,7 +595,11 @@ get_database_overview() {
 
 
     Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')      # Ex: Port=3306
-    OpenSQLPorts="$(lsof -i:$Port)"
+    if [ -x /bin/lsof ]; then
+        OpenSQLPorts="$(/bin/lsof -i:$Port)"
+    elif [ -x /sbin/lsof ]; then
+        OpenSQLPorts="$(/sbin/lsof -i:$Port)"
+    fi
     # Ex: OpenSQLPorts='COMMAND    PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
     #                   docker-pr 1629 root    4u  IPv4  38869      0t0  TCP *:mysql (LISTEN)
     #                   docker-pr 1639 root    4u  IPv6  38877      0t0  TCP *:mysql (LISTEN)'
@@ -599,7 +610,11 @@ get_database_overview() {
     # docker-proxy 1629 root    4u  IPv4  38869      0t0  TCP *:mysql (LISTEN)
     # docker-proxy 1639 root    4u  IPv6  38877      0t0  TCP *:mysql (LISTEN)
     # ^^^1^^^       ^2^ ^^3^        ^^5^                 ^^8^ ^^9^
-    OpenSQLPorts="$(lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
+    if [ -x /bin/lsof ]; then
+        OpenSQLPorts="$(/bin/lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
+    elif [ -x /sbin/lsof ]; then
+        OpenSQLPorts="$(/sbin/lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
+    fi
     # Ex: OpenSQLPorts='docker-proxy 1629 root IPv4 TCP *:mysql (LISTEN)
     #                   docker-proxy 1639 root IPv6 TCP *:mysql (LISTEN)'
 
@@ -652,7 +667,7 @@ get_daemon_info() {
     RunningDaemonName="$(grep "$RunningDaemonUID" /etc/passwd | cut -d: -f5)"                                     # Ex: RunningDaemonName='systemd Core Dumper'
     RunningDaemon="$(echo "$RunningDaemonLine" | awk '{print $NF}')"                                              # Ex: RunningDaemon=mariadbd
     RunningDaemonSecs="$(ps -p $RunningDaemonPID -o etimes=)"                                                     # Ex: RunningDaemonSecs=' 112408'
-    RunningDaemonTimeH="$(time_convert $RunningDaemonSecs)"                                                       # Ex: RunningDaemonTimeH='1 days 9 hours 19 min 4 sec'
+    RunningDaemonTimeH="$(time_convert $RunningDaemonSecs | sed 's/ [0-9]* sec$//')"                              # Ex: RunningDaemonTimeH='1 days 9 hours 19 min'
     #RunningDaemonStartTime="$(ps -p $RunningDaemonPID -o lstart=)"                                                # Ex: RunningDaemonStartTime='Mon Jan 29 07:43:45 2024'
     RunningDaemonStartTime="$(date +%F" "%T -d @"$(($(date +%s) - $(ps -p $RunningDaemonPID -o etimes=)))")"      # Ex: RunningDaemonStartTime='2024-01-29 07:43:45'
     UptimeSince="$(uptime -s)"                                                                                    # Ex: UptimeSince='2024-01-29 04:06:33'
