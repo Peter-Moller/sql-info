@@ -380,7 +380,7 @@ get_sql_users() {
     while read -r USER HOST
     do
         Host=$(echo "$HOST" | tr -d '\n')
-        GRANTS="$(${SQLCommand/-it/} -u$SQLUser -p"$DATABASE_PASSWORD" -NBe  'SHOW GRANTS FOR '\'''$USER''\''@'\'''$Host''\'';' | sed "s/'[^']*'/'XXX'/" | fold -w100 -s)"
+        GRANTS="$(${SQLCommand/-it/} -u$SQLUser -p"$DATABASE_PASSWORD" -NBe  'SHOW GRANTS FOR '\'''$USER''\''@'\'''$Host''\'';' | sed "s/PASSWORD '[^']*'/PASSWORD 'XXX'/" | fold -w100 -s)"
         UserTblString+="<tr><td><pre>$USER</pre></td><td><pre>$Host</pre></td><td><pre>$GRANTS</pre></td></tr>$NL"
     done <<< "$UserList"
 
