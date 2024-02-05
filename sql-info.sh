@@ -516,7 +516,7 @@ do_mariadb_check() {
 
         # Assemble the string
         DBCheckString="<tr><th align=\"right\" colspan=\"2\">Database verification</th></tr>$NL"
-        DBCheckString+="<tr><td>Method</td><td><code>$DBCheckCommand</code></td></tr>$NL"
+        DBCheckString+="<tr><td>Method:</td><td><code>$DBCheckCommand</code></td></tr>$NL"
         if [ -z "$MariaCheckErrors" ]; then
             DBCheckString+="<tr><td>Status:</td><td style=\"color: green;\">All OK</td></tr>$NL"
         else
@@ -540,17 +540,16 @@ do_mariadb_check() {
 
 get_database_overview() {
     DatabasesToHide="information_schema|performance_schema|mysql"
-    DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME),FORMAT(SUM(TABLE_ROWS),0),FORMAT(SUM(DATA_LENGTH),0),DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
+    #DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME),FORMAT(SUM(TABLE_ROWS),0),FORMAT(SUM(DATA_LENGTH),0),FORMAT(SUM(INDEX_LENGTH),0),DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
+    DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME),FORMAT(SUM(TABLE_ROWS),0),SUM(DATA_LENGTH),SUM(INDEX_LENGTH),DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
     DatabaseOverview="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "$DatabaseOverviewSQL" | tr -d '\r')"
-    # Ex: DatabaseOverview='hbg01          10                 1,325                      196,608                     NULL       NULL                NULL                 NULL                 NULL
-    #                       hbg02          12                 1,378                      327,680                     0          utf8mb4_general_ci  2024-01-23 12:33:32  NULL                 InnoDB
-    #                       hbg03          16                 1,379                      327,680                     NULL       NULL                NULL                 NULL                 NULL
-    #                       hbg04          17                 1,381                      393,216                     NULL       NULL                NULL                 NULL                 NULL
-    #                       hbg05          5                  1,325                      196,608                     NULL       NULL                NULL                 NULL                 NULL
-    #                       hbg06          11                 1,347                      278,528                     0          utf8mb4_general_ci  2024-01-30 09:57:35  NULL                 InnoDB
-    #                       TABLE_SCHEMA   COUNT(TABLE_NAME)  FORMAT(SUM(TABLE_ROWS),0)  FORMAT(SUM(DATA_LENGTH),0)  DATA_FREE  TABLE_COLLATION     CREATE_TIME          UPDATE_TIME          ENGINE
-    #                       Database       #table             ∑row                       ∑data_length                DataFree   Collation           Created              Updated       
-    #                         1            2                   3                            4                         5             6                  7                   8                    9
+    # Ex: DatabaseOverview='information_schema	        79	           NULL	        106,496	        106,496	        0	utf8mb3_general_ci	2024-02-05 20:14:58	 2024-02-05 20:14:58	Aria
+    #                       moodle	                   510	    100,054,996	 36,590,018,560	 11,565,973,504	        0	utf8mb4_unicode_ci	2024-01-18 13:15:42	 NULL	                InnoDB
+    #                       mysql	                    31	        146,501	      9,912,320  	  2,727,936	        0	utf8mb3_general_ci	2024-01-18 14:31:27	 2024-01-18 14:31:27	Aria
+    #                       performance_schema          81	            535	              0	              0	        0	utf8mb3_general_ci	NULL	             NULL	                PERFORMANCE_SCHEMA
+    #                       sys	                       101	              6	         16,384	         16,384	     NULL	NULL	            NULL	             NULL	                NULL'
+    #                       Database                #table             ∑row    ∑data_length   ∑index_length  DataFree   Collation           Created              Updated                Storage Engine
+    #                         1                          2                3               4               5         6   7                   8                    9                      10
     # Ex: DatabaseOverview='moodle         510                 99,833,991                36,585,676,800              0          utf8mb4_unicode_ci  2024-01-29 06:43:46  NULL                 InnoDB    
     #                       mysql           31                 144,721                   9,912,320                   0          utf8mb3_general_ci  2024-01-18 14:31:27  2024-01-29 06:39:23  Aria      '
     NumDB=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW DATABASES;" | wc -l)        # Ex: NumDB=5
@@ -559,16 +558,25 @@ get_database_overview() {
     DatabaseTblString="<tr><th align=\"right\" colspan="2">Databases &amp; tables</th></tr>$NL
         <tr><td colspan="2">The following $NumDB databases exists:</td></tr>$NL
         <tr><td colspan="2"><table>$NL
-        <tr><td><b>Database</b>&nbsp;&#8595;</td><td align=\"right\"><b>Num. tables</b></td><td align=\"right\"><b>&sum; rows</b></td><td align=\"right\"><b>&sum; table data [B]</b></td><td><b>Data on disk</b></td><td><b>Table collation</b></td><td><b>Created</b></td><td><b>Storage engine</b></td></tr>$NL"
-    while read DB NumTables SumRows SumDataLength DataFree Collation CreateTime UpdateTime Engine
+        <tr><td><b>Database</b>&nbsp;&#8595;</td><td align=\"right\"><b>Num. tables</b></td><td align=\"right\"><b>&sum; rows</b></td><td align=\"right\"><b>&sum; table data</b></td><td align=\"right\"><b>&sum; index data</b></td><td><b>Data on disk</b></td><td><b>Table collation</b></td><td><b>Created</b></td><td><b>Storage engine</b></td></tr>$NL"
+    while read DB NumTables SumRows SumDataLength SumIndexLength DataFree Collation CreateTime UpdateTime Engine
     do
         DatabaseDiskVolume="$(du -skh $DB_ROOT/$DB 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"                            # Ex: DatabaseDiskVolume='48 GiB'
-        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
+        DataLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"             # Ex: DataLength='34.1 GiB'
+        if [ -z "$DataLength" ]; then
+            DataLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
+        fi
+        IndexLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumIndexLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"           # Ex: IndexLength='10.8 GiB'
+        if [ -z "$IndexLength" ]; then
+            IndexLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumIndexLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
+        fi
+        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$DataLength</td><td align=\"right\">$IndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
     DatabaseTblString+="</table></td></tr>"
 
     # Get data for the 5 largest tables
-    FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),FORMAT((DATA_LENGTH+INDEX_LENGTH)/1024/1024,0),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
+    #FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),FORMAT((DATA_LENGTH+INDEX_LENGTH)/1024/1024,0),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
+    FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),(DATA_LENGTH+INDEX_LENGTH),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
     FiveLargestTables="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NB -e "$FiveLargestTablesSQL")"
     # Ex: FiveLargestTables='moodle   mdl_question_attempt_step_data  54,183,632  25,593   InnoDB  2024-01-18 13:50:02   2024-01-28 10:27:07  utf8mb4_unicode_ci  0.0
     #                        moodle   mdl_logstore_standard_log       23,284,656  11,398   InnoDB  2024-01-18 13:20:30   2024-01-28 10:27:09  utf8mb4_unicode_ci  0.1
@@ -580,7 +588,7 @@ get_database_overview() {
     # Create the table part:
     DatabaseTblString+="<tr><td colspan=\"2\">The five largest tables:
     <table>
-    <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td><b>&sum; size [MB]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
+    <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td align=\"right\"><b>&sum; size</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
         #case "${StorageEngine,,}" in
@@ -590,11 +598,15 @@ get_database_overview() {
         #esac
         TableDiskVolumeB="$(ls -ls $DB_ROOT/$TableSchema/${TableName}* | awk '{sum+=$6} END {print sum}')"               # Ex: TableDiskVolumeB=27816625772
         #TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}."Extension" 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
-        TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26.0 GiB'
+        TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"     # Ex: TableDiskVolume='26.0 GiB'
         if [ -z "$TableDiskVolume" ]; then
             TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26 GiB'
         fi
-        DatabaseTblString+="        <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$(printf "%'.1f" $Fragmentation)%</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
+        Size="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumSize 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"                         # Ex: Size='25.0 GiB'
+        if [ -< "$Size" ]; then
+            Size="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumSize 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
+        fi
+        DatabaseTblString+="        <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$Size</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$(printf "%'.1f" $Fragmentation)%</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
     DatabaseTblString+="</table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
             <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>$NL"
@@ -683,7 +695,7 @@ get_daemon_info() {
     DaemonInfoStr="<tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
     DaemonInfoStr+="$EnvironmentStr"
     DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code></td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>PID:</td><td><code>$RunningDaemonPID</code></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>PID:</td><td><code>$(echo "$RunningDaemonPID" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/<\/code><br><code>/g')</code></td></tr>$NL"
     DaemonInfoStr+="        <tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
     DaemonInfoStr+="        <tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
     DaemonInfoStr+="        <tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
