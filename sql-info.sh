@@ -587,7 +587,10 @@ get_database_overview() {
         esac
         TableDiskVolumeB="$(ls -ls ${TableName}* | awk '{sum+=$6} END {print sum}')"               # Ex: TableDiskVolumeB=27816625772
         #TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}."Extension" 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
-        TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26.0 GiB'
+        TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26.0 GiB'
+        if [ -z "$TableDiskVolume" ]; then
+            TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26 GiB'
+        fi
         DatabaseTblString+="        <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$Fragmentation %</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
     DatabaseTblString+="</table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
