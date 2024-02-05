@@ -200,7 +200,10 @@ platform_info() {
     DiskreePercent="$((100-$(echo "$DFStr" | awk '{print $6}' | cut -d% -f1)))%"                                            # Ex: DiskreePercent=36%
     DiskFS="$(echo "$DFStr" | awk '{print $1}')"                                                                            # Ex: DiskFS=/dev/mapper/vg1-data
     DiskFreeKiB="$(echo "$DFStr" | awk '{print $5}')"                                                                       # Ex: DiskFreeKiB=113453636
-    DiskFreeGiB="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $((DiskFreeKiB*1024)) | sed 's/^ *//;s/GiB/ GiB/')"        # Ex: DiskFreeGiB='108.2 GiB'
+    DiskFreeGiB="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $((DiskFreeKiB*1024)) 2>/dev/null | sed 's/^ *//;s/GiB/ GiB/')"      # Ex: DiskFreeGiB='108.2 GiB'
+    if [ -z "$DiskFreeGiB" ]; then
+        DiskFreeGiB="$(numfmt --to=iec-i --suffix=B --format="%9f" $((DiskFreeKiB*1024)) 2>/dev/null | sed 's/^ *//;s/GiB/ GiB/')"    # Ex: DiskFreeGiB='108 GiB'
+    fi
     DiskFStype="$(echo "$DFStr" | awk '{print $2}')"                                                                        # Ex: DiskFStype=xfs
     DBDirVolume="$(du -skh "$DB_ROOT" | awk '{print $1}' | sed 's/G/ GiB/;s/M/ MiB/;s/K/ KiB/')"                            # Ex: DBDirVolume='58 GB'
     DiskInfoString="        <tr><td>Disk info:</td><td>Database directory <code>$DB_ROOT</code> occupies $DBDirVolume.<br><i>$DiskreePercent ($DiskFreeGiB) is free on <code>$DiskFS</code> and uses <code>$DiskFStype</code> file system.</i></td></tr>"
@@ -580,12 +583,12 @@ get_database_overview() {
     <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td><b>&sum; size [MB]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
-        case "${StorageEngine,,}" in
-            "innodb" ) Extension="[Ii][Bb][Dd]";;
-            "aria" )   Extension="[Mm][Aa][Ii]";;
-            "myisam" ) Extension="[Mm][Yy][Dd]";;
-        esac
-        TableDiskVolumeB="$(ls -ls ${TableName}* | awk '{sum+=$6} END {print sum}')"               # Ex: TableDiskVolumeB=27816625772
+        #case "${StorageEngine,,}" in
+        #    "innodb" ) Extension="[Ii][Bb][Dd]";;
+        #    "aria" )   Extension="[Mm][Aa][Ii]";;
+        #    "myisam" ) Extension="[Mm][Yy][Dd]";;
+        #esac
+        TableDiskVolumeB="$(ls -ls $DB_ROOT/$TableSchema/${TableName}* | awk '{sum+=$6} END {print sum}')"               # Ex: TableDiskVolumeB=27816625772
         #TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}."Extension" 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
         TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26.0 GiB'
         if [ -z "$TableDiskVolume" ]; then
