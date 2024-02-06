@@ -682,8 +682,8 @@ get_daemon_info() {
     RunningDaemonPPID="$(echo "$RunningDaemonLine" | awk '{print $3}')"                                           # Ex: RunningDaemonPPID=58288
     RunningDaemonPPIDCommand="$(ps -p $RunningDaemonPPID -o cmd= | awk '{print $1}')"                             # Ex: RunningDaemonPPIDCommand=/usr/bin/containerd-shim-runc-v2
     RunningDaemonUID="$(echo "$RunningDaemonLine" | awk '{print $1}')"                                            # Ex: RunningDaemonUID=999
-    RunningDaemonUser="$(grep "$RunningDaemonUID" /etc/passwd | cut -d: -f1)"                                     # Ex: RunningDaemonUser=systemd-coredump
-    RunningDaemonName="$(grep "$RunningDaemonUID" /etc/passwd | cut -d: -f5)"                                     # Ex: RunningDaemonName='systemd Core Dumper'
+    RunningDaemonUser="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f1)"                                   # Ex: RunningDaemonUser=systemd-coredump
+    RunningDaemonName="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f5)"                                   # Ex: RunningDaemonName='systemd Core Dumper'
     RunningDaemon="$(echo "$RunningDaemonLine" | awk '{print $NF}')"                                              # Ex: RunningDaemon=mariadbd
     RunningDaemonSecs="$(ps -p $RunningDaemonPID -o etimes=)"                                                     # Ex: RunningDaemonSecs=' 112408'
     RunningDaemonTimeH="$(time_convert $RunningDaemonSecs | sed 's/ [0-9]* sec$//')"                              # Ex: RunningDaemonTimeH='1 days 9 hours 19 min'
