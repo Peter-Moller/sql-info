@@ -192,7 +192,8 @@ platform_info() {
     fi
 
     # Get RAM
-    RAM=$(grep -E -i "^MemTotal" /proc/meminfo | awk '{print $2}')                                                          # Ex: RAM=16349556
+    RAM="$(free -gh | grep -Ei "^mem:" | awk '{print $2}' | sed 's/Gi/ GiB/')"                                              # Ex: RAM='15 GiB'
+    #RAM=$(grep -E -i "^MemTotal" /proc/meminfo | awk '{print $2}')                                                          # Ex: RAM=16349556
     RAMAvailable="$(echo "scale=1; ($(egrep "MemAvailable:" /proc/meminfo | awk '{print $2}')) / 1048576" | bc)"            # Ex: RAMAvailable=14.3
 
     # Get disk details:
@@ -212,7 +213,7 @@ platform_info() {
     NbrCPUs=$(grep -Ec "^processor" /proc/cpuinfo)                                                                          # Ex: NbrCPUs=4
 
     # Assemble environment string:
-    EnvironmentStr="        <tr><td>Operating system:</td><td>$OS$SepatarorStr$PlatformStr$SepatarorStr$NbrCPUs logical processors$SepatarorStr$((RAM /1000000)) GB of RAM</td></tr>"
+    EnvironmentStr="        <tr><td>Operating system:</td><td>$OS$SepatarorStr$PlatformStr$SepatarorStr$NbrCPUs logical processors$SepatarorStr$RAM of RAM</td></tr>"
 }
 
 
@@ -681,6 +682,19 @@ get_daemon_info() {
     RunningDaemonMemVSZ="$(ps --no-headers -o vsz:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemVSZ=1920
     RunningDaemonPPID="$(echo "$RunningDaemonLine" | awk '{print $3}')"                                           # Ex: RunningDaemonPPID=58288
     RunningDaemonPPIDCommand="$(ps -p $RunningDaemonPPID -o cmd= | awk '{print $1}')"                             # Ex: RunningDaemonPPIDCommand=/usr/bin/containerd-shim-runc-v2
+    if [ -n "$(echo "$RunningDaemonPPIDCommand" | grep -Eo "containerd")" ]; then
+        Dockers="$(docker ps | grep -Ev "^CONTAINER" | awk '{print $NF}')"
+        # Ex: Dockers='moodledb
+        #              moodleweb'
+        while read DOCKER
+        do
+            if [ -n "$(docker top $DOCKER | grep -E "\b$RunningDaemonPID\b")" ]; then
+                RunningDocker="$DOCKER"                                                                           # Ex: RunningDocker=moodledb
+                RunningDockerStr="&nbsp;<i>(running inside docker <code>$RunningDocker</code>)</i>"
+                break
+            fi
+        done <<< "$Dockers"
+    fi
     RunningDaemonUID="$(echo "$RunningDaemonLine" | awk '{print $1}')"                                            # Ex: RunningDaemonUID=999
     RunningDaemonUser="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f1)"                                   # Ex: RunningDaemonUser=systemd-coredump
     RunningDaemonName="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f5)"                                   # Ex: RunningDaemonName='systemd Core Dumper'
@@ -694,7 +708,7 @@ get_daemon_info() {
     # Assemble the DaemonInfoStr
     DaemonInfoStr="<tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
     DaemonInfoStr+="$EnvironmentStr"
-    DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code></td></tr>$NL"
+    DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code>$RunningDockerStr</td></tr>$NL"
     DaemonInfoStr+="        <tr><td>PID:</td><td><code>$(echo "$RunningDaemonPID" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/<\/code><br><code>/g')</code></td></tr>$NL"
     DaemonInfoStr+="        <tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
     DaemonInfoStr+="        <tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
