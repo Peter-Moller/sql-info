@@ -385,7 +385,7 @@ get_sql_users() {
     do
         Host=$(echo "$HOST" | tr -d '\n')
         GRANTS="$(${SQLCommand/-it/} -u$SQLUser -p"$DATABASE_PASSWORD" -NBe  'SHOW GRANTS FOR '\'''$USER''\''@'\'''$Host''\'';' | sed "s/PASSWORD '[^']*'/PASSWORD 'XXX'/" | fold -w100 -s)"
-        UserTblString+="<tr><td><pre>$USER</pre></td><td><pre>$Host</pre></td><td><pre>$GRANTS</pre></td></tr>$NL"
+        UserTblString+="            <tr><td><pre>$USER</pre></td><td><pre>$Host</pre></td><td><pre>$GRANTS</pre></td></tr>$NL"
     done <<< "$UserList"
 
     # Create the table part:
@@ -477,7 +477,7 @@ get_storage_engines() {
         DATA="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $4}' | sed 's/GB/ GB/')"
         IDX="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $5}' | sed 's/GB/ GB/')"
         TOTAL_SIZE="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $6}' | sed 's/GB/ GB/')"
-        StorageEngineStr+="<tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
+        StorageEngineStr+="        <tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
     done <<< "$StorageEngines"
     StorageEngineStr+="$NL</table><br><p><i>Read an overview of <a href="https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html">storage engines</a></i></p></td></tr>$NL"
 }
@@ -571,7 +571,7 @@ get_database_overview() {
         if [ -z "$IndexLength" ]; then
             IndexLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumIndexLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
         fi
-        DatabaseTblString+="<tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$DataLength</td><td align=\"right\">$IndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
+        DatabaseTblString+="        <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$DataLength</td><td align=\"right\">$IndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
     DatabaseTblString+="</table></td></tr>"
 
@@ -708,15 +708,19 @@ get_daemon_info() {
     # Assemble the DaemonInfoStr
     DaemonInfoStr="<tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
     DaemonInfoStr+="$EnvironmentStr"
-    DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code>$RunningDockerStr</td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>PID:</td><td><code>$(echo "$RunningDaemonPID" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/<\/code><br><code>/g')</code></td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
-    DaemonInfoStr+="        <tr><td>Computer boot time:</td><td>$UptimeSince</td></tr>$NL"
-    DaemonInfoStr+="$OpenConnectionTblPart$NL"
-    DaemonInfoStr+="$DiskInfoString"
+    if [ -n "$RunningDaemonLine" ]; then
+        DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code>$RunningDockerStr</td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>PID:</td><td><code>$(echo "$RunningDaemonPID" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/<\/code><br><code>/g')</code></td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>Computer boot time:</td><td>$UptimeSince</td></tr>$NL"
+        DaemonInfoStr+="$OpenConnectionTblPart$NL"
+        DaemonInfoStr+="$DiskInfoString"
+    else
+        DaemonInfoStr+="        <tr><td>Daemon:</td><td>No <code>mysqld</code> or <code>mariadbd</code> detected.</td></tr>$NL"
+    fi
 }
 
 
@@ -754,21 +758,23 @@ assemble_web_page() {
         echo '    <table id="jobe">' >> $EmailTempFile
         echo "      <tbody>" >> $EmailTempFile
         echo "$DaemonInfoStr" >> $EmailTempFile
-        echo "$DBCheckString" >> $EmailTempFile
-        echo "$DatabaseTblString" >> $EmailTempFile
-        echo '      </tbody>' >> $EmailTempFile
-        echo '    </table>' >> $EmailTempFile
-        echo '    <p>&nbsp;</p>' >> $EmailTempFile
-        echo '    <p>&nbsp;</p>' >> $EmailTempFile
-        echo '    <h1 align="center">D a t a b a s e&nbsp;&nbsp;&nbsp;&nbsp;s e t t i n g s</h1>' >> $EmailTempFile
-        echo '    <p>&nbsp;</p>' >> $EmailTempFile
-        echo '    <table id="jobe">' >> $EmailTempFile
-        echo '      <tbody>' >> $EmailTempFile
-        echo "$MainReplicaString" >> $EmailTempFile
-        echo "$SQLUsersTablePart" >> $EmailTempFile
-        echo "$StorageEngineStr" >> $EmailTempFile
-        echo "$SQLVariableStr" >> $EmailTempFile
-        echo "$SQLStatusStr" >> $EmailTempFile
+        if [ -n "$RunningDaemonLine" ]; then
+            echo "$DBCheckString" >> $EmailTempFile
+            echo "$DatabaseTblString" >> $EmailTempFile
+            echo '      </tbody>' >> $EmailTempFile
+            echo '    </table>' >> $EmailTempFile
+            echo '    <p>&nbsp;</p>' >> $EmailTempFile
+            echo '    <p>&nbsp;</p>' >> $EmailTempFile
+            echo '    <h1 align="center">D a t a b a s e&nbsp;&nbsp;&nbsp;&nbsp;s e t t i n g s</h1>' >> $EmailTempFile
+            echo '    <p>&nbsp;</p>' >> $EmailTempFile
+            echo '    <table id="jobe">' >> $EmailTempFile
+            echo '      <tbody>' >> $EmailTempFile
+            echo "$MainReplicaString" >> $EmailTempFile
+            echo "$SQLUsersTablePart" >> $EmailTempFile
+            echo "$StorageEngineStr" >> $EmailTempFile
+            echo "$SQLVariableStr" >> $EmailTempFile
+            echo "$SQLStatusStr" >> $EmailTempFile
+        fi
         echo "      </tbody>" >> $EmailTempFile
         echo "    </table>" >> $EmailTempFile
         echo "  </section>" >> $EmailTempFile
@@ -859,19 +865,22 @@ script_launcher
 
 platform_info
 
-get_sql_variables
-
-get_sql_status
-
-get_sql_users
-
-get_storage_engines
-
-do_mariadb_check
-
-get_database_overview
-
 get_daemon_info
+
+# Only present stuff if the daemon *is* running
+if [ -n "$RunningDaemonLine" ]; then
+    get_sql_variables
+
+    get_sql_status
+
+    get_sql_users
+
+    get_storage_engines
+
+    do_mariadb_check
+
+    get_database_overview
+fi
 
 email_html_create_send
 
