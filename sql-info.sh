@@ -720,6 +720,13 @@ get_daemon_info() {
         DaemonInfoStr+="$DiskInfoString"
     else
         DaemonInfoStr+="        <tr><td>Daemon:</td><td>No <code>mysqld</code> or <code>mariadbd</code> detected.</td></tr>$NL"
+        SystemctlStatus="$(systemctl status mysql 2>/dev/null)"
+        if [ -z "$SystemctlStatus" ]; then
+            SystemctlStatus="$(systemctl status mariadb 2>/dev/null)"
+        fi
+        if [ -n "$SystemctlStatus" ]; then
+            DaemonInfoStr+="        <tr><td><code>systemctl&nbsp;</code>:</td><td><pre>$SystemctlStatus</pre></td></tr>$NL"
+        fi
     fi
 }
 
