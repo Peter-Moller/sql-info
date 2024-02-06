@@ -227,6 +227,7 @@ platform_info() {
 
 get_sql_variables() {
     #InterestingVariables="^binlog_expire_logs_seconds\b|^binlog_file_cache_size\b|^collation_connection\b|^collation_database\b|^collation_server\b|^datadir\b|^default_storage_engine\b|^general_log_file\b|^have_ssl\b|^hostname\b|^log_slow_query\b|^log_slow_query_file\b|^log_slow_query_time\b|^performance_schema\b|^pid_file\b|^plugin_dir\b|^port\b|^socket\b|^tls_version\b|^version\b|^version_ssl_library\b"
+    SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/">Server System Variables</a>.</i></p>'
     InterestingVariables="binlog_expire_logs_seconds	The binary log expiration period in seconds
 binlog_file_cache_size	Size of in-memory cache that is allocated when reading binary log and relay log files. <a href=\"https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_file_cache_size\">Read about it</a>
 collation_connection	
@@ -291,7 +292,7 @@ version_ssl_library	The version of the TLS library that is being used"
             SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
         fi
     done <<< "$InterestingVariables"
-    SQLVariableStr+="        </table></td></tr>$NL"
+    SQLVariableStr+="        </table>$SQLVariablesReadMoreStr</td></tr>$NL"
 
 #    # Print it:
 #    while IFS=$'\t' read VAR VALUE
@@ -309,6 +310,7 @@ version_ssl_library	The version of the TLS library that is being used"
 #  /\__/ / \ \/' / | |____    /\__/ / | |_  | (_| | | |_  | |_| | \__ \
 #  \____/   \_/\_\ \_____/    \____/   \__|  \__,_|  \__|  \__,_| |___/
 get_sql_status() {
+    SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/">Server Status Variables</a>.</i></p>'
     InterestingStatus="Aborted_clients	The number of connections that were aborted because the client died without closing the connection properly
 Aborted_connects	The number of failed attempts to connect to the MySQL server
 Compression	Whether the client connection uses compression in the client/server protocol.
@@ -333,7 +335,7 @@ Uptime	The number of seconds that the server has been up"
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
         SQLStatusStr+="        <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
     done <<< "$InterestingStatus"
-    SQLStatusStr+="        </table></td></tr>$NL"
+    SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
 }
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #   
