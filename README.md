@@ -45,5 +45,8 @@ The following variables are needed:
 
 For example output, please see this image:
 
-![example-report](SQL-report-for-moodle.png)
+![example-report](sql-info_moodle.png)
 
+When a daemon is not found, it displays output from `systemctl`:
+
+![example-report-when-daemon-not-running](sql-info_vm03.png)
