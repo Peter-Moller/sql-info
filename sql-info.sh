@@ -241,7 +241,7 @@ have_ssl	YES if mysqld supports SSL connections. DISABLED if server is compiled 
 hostname	The server sets this variable to the server host name at startup
 log_slow_query	<a href=\"https://mariadb.com/kb/en/server-system-variables/#log_slow_query\">Read about it</a>
 log_slow_query_file	Name of the slow query log file.
-log_slow_query_time	If a query takes longer than this many seconds to execute (microseconds can be specified too), the query is logged to the slow query log
+log_slow_query_time	If a query takes longer than this many seconds to execute (microseconds can be specified too), the query is logged to the slow query log.<br>Should be 1-5 seconds (if enabled)
 performance_schema	<a href=\"https://mariadb.com/kb/en/performance-schema-system-variables/#performance_schema\">Read about performance_schema</a>
 pid_file	Full path of the process ID file
 plugin_dir	Path to the plugin directory
@@ -318,26 +318,81 @@ Compression	Whether the client connection uses compression in the client/server 
 Connections	The number of connection attempts (successful or not) to the MySQL server.
 Connection_errors_accept	The number of errors that occurred during calls to accept() on the listening port
 Connection_errors_internal	The number of connections refused due to internal errors in the server, such as failure to start a new thread or an out-of-memory condition
+Handler_read_first	Number of requests to read the first row from an index. A high value indicates many full index scans.
+Handler_read_rnd	Number of requests to read a row based on its position.
 innodb_buffer_pool_size	The size in bytes of the buffer pool, the memory area where InnoDB caches table and index data. Default is 128 MB.<br><a href=\"https://mariadb.com/kb/en/innodb-buffer-pool/\">Read about InnoDB Buffer Pool</a>
 Max_statement_time_exceeded	If set, any query taking longer than this value (in seconds) to execute will be aborted
 Max_used_connections	The maximum number of connections that have been in use simultaneously since the server started
 Open_files	Number of files that are open, including regular files opened by the server but not sockets or pipes
 Open_tables	The number of tables that are open
+Opened_tables	Number of tables the server has opened.
 Queries	The number of statements executed by the server
 Rpl_semi_sync_slave_status	Shows whether semisynchronous replication is currently operational on the replica
+Select_full_join	Number of joins which did not use an index. If not zero, you may need to check table indexes.
+Select_range	Number of joins which used a range on the first table.
+Select_range_check	Number of joins without keys that check for key usage after each row. If not zero, you may need to check table indexes.
+Select_scan	Number of joins which used a full scan of the first table.
+Sort_rows	Number of rows sorted.
 Slave_running	
 Uptime	The number of seconds that the server has been up"
 
+    # get the server uptime (needed for calculations)
+    DaemonUptime=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Uptime';" | awk '{print $2}')      # Ex: DaemonUptime=201346
+    DaemonUptimeH=$((DaemonUptime / 3600))                                                                                  # Ex: DaemonUptimeH=55
     SQLStatusStr="        <tr><th colspan=\"2\">SQL status</th></tr>
         <tr><td colspan=\"2\">
             <table>
                 <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
     while read VAR EXPLANATION
     do
+        EVALUATION=""
         #VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE '$VAR';" | awk '{print $2}')"
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
+        if [ -n "$VALUE" ]; then
+            if [ ${VALUE//,/} -gt 0 ]; then
+                RATE=$(( $(echo "${VALUE//,/}") / $((DaemonUptimeH*3600)) ))      # RATE = $VALUE per hour, per hour the server has been up
+            else
+                RATE=0
+            fi
+        fi
+        case $VAR in
+            "Open_files" )         if [ $RATE -gt $((DaemonUptimeH*5)) ]; then
+                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 5 per hour."
+                                   else
+                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 5 per hour."
+                                   fi;
+                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
+            "Opened_tables" )      if [ $RATE -gt $((DaemonUptimeH*10)) ]; then
+                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 10 per hour."
+                                   else
+                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 10 per hour."
+                                   fi;
+                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
+            "Handler_read_first" ) if [ $RATE -gt $DaemonUptimeH ]; then
+                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 1 per hour."
+                                   else
+                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 1 per hour."
+                                   fi;
+                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
+            "Handler_read_rnd" )   if [ $RATE -gt $DaemonUptimeH ]; then
+                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 1 per hour."
+                                   else
+                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 1 per hour."
+                                   fi;
+                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
+            "Uptime" )             EXPLANATION="$EXPLANATION ($(time_convert ${VALUE//,/} | sed 's/ [0-9]* sec$//')).";;
+        esac
         SQLStatusStr+="            <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
     done <<< "$InterestingStatus"
+    Select_range_check=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_range_check';" | awk '{print $2}') # Ex: Select_range_check=0
+    Select_scan=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_scan';" | awk '{print $2}')               # Ex: Select_scan=0
+    Select_full_join=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_full_join';" | awk '{print $2}')     # Ex: Select_full_join=0
+    JoinNoIndexValue=$(( $(( Select_range_check + Select_scan + Select_full_join)) / DaemonUptime ))
+    if [ $JoinNoIndexValue -lt 1 ]; then
+        SQLStatusStr+="            <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td><i>Value is good (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
+    else
+        SQLStatusStr+="            <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td style=\"color: red\"><i>Value is BAD (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
+    fi
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
 }
 
