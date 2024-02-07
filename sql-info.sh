@@ -802,12 +802,12 @@ assemble_web_page() {
         echo "      Script launched $ScriptLaunchText by: <code>${ScriptLauncher:---no launcher detected--}</code> </p>" >> $EmailTempFile
         echo '    <p align="left">&nbsp;</p>' >> $EmailTempFile
         echo '    <p align="left">&nbsp;</p>' >> $EmailTempFile
-        echo '    <h1 align="center">R u n n i n g&nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> $EmailTempFile
-        echo '    <p>&nbsp;</p>' >> $EmailTempFile
-        echo '    <table id="jobe">' >> $EmailTempFile
-        echo "      <tbody>" >> $EmailTempFile
-        echo "$DaemonInfoStr" >> $EmailTempFile
         if [ -n "$RunningDaemonLine" ]; then
+            echo '    <h1 align="center">R u n n i n g&nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> $EmailTempFile
+            echo '    <p>&nbsp;</p>' >> $EmailTempFile
+            echo '    <table id="jobe">' >> $EmailTempFile
+            echo "      <tbody>" >> $EmailTempFile
+            echo "$DaemonInfoStr" >> $EmailTempFile
             echo "$DBCheckString" >> $EmailTempFile
             echo "$DatabaseTblString" >> $EmailTempFile
             echo '      </tbody>' >> $EmailTempFile
@@ -824,6 +824,11 @@ assemble_web_page() {
             echo "$SQLVariableStr" >> $EmailTempFile
             echo "$SQLStatusStr" >> $EmailTempFile
         else
+            echo '    <h1 align="center" style="color: red">D E A D &nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> $EmailTempFile
+            echo '    <p>&nbsp;</p>' >> $EmailTempFile
+            echo '    <table id="jobe">' >> $EmailTempFile
+            echo "      <tbody>" >> $EmailTempFile
+            echo "$DaemonInfoStr" >> $EmailTempFile
             get_last_known_good_data
         fi
         echo "      </tbody>" >> $EmailTempFile

@@ -40,4 +40,4 @@ For example output, please see this image:
 
 When a daemon is not found, it displays output from `systemctl` as well as the essential data from the last successful run:
 
-![example-report-when-daemon-not-running](sql-info_vm03.png)
+![example-report-when-daemon-not-running](sql-info_samtest.png)
