@@ -764,8 +764,8 @@ get_last_known_good_data() {
     echo "    </table>" >> $EmailTempFile
     echo "    <p>&nbsp;</p>" >> $EmailTempFile
     echo "	  <p>&nbsp;</p>" >> $EmailTempFile
-    echo "	  <h1 align=\"center\">Last known good data</h1>" >> $EmailTempFile
-    echo "	  <p align=\"center\">Date: $LastRunFileDatetime</p>" >> $EmailTempFile
+    echo "	  <h1 align=\"center\" style=\"color: red\">Last known good data</h1>" >> $EmailTempFile
+    echo "	  <p align=\"center\" style=\"color: red\">Date: $LastRunFileDatetime</p>" >> $EmailTempFile
     echo "	  <p>&nbsp;</p>" >> $EmailTempFile
     echo "	  <table id=\"jobe\">" >> $EmailTempFile
     echo "		  <tbody>" >> $EmailTempFile
