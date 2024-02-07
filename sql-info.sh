@@ -760,7 +760,9 @@ get_daemon_info() {
 
 get_last_known_good_data() {
     LastRunFileDatetime="$(stat --format %x "$LastRunFile" | sed 's/\.[0-9]*//')"                  # Ex: LastRunFileDatetime='2024-02-07 08:55:05 +0100'
-    echo "    	  <p>&nbsp;</p>" >> $EmailTempFile
+    echo "        </tbody>" >> $EmailTempFile
+    echo "    </table>" >> $EmailTempFile
+    echo "    <p>&nbsp;</p>" >> $EmailTempFile
     echo "	  <p>&nbsp;</p>" >> $EmailTempFile
     echo "	  <h1 align=\"center\">Last known good data</h1>" >> $EmailTempFile
     echo "	  <p align=\"center\">Date: $LastRunFileDatetime</p>" >> $EmailTempFile
