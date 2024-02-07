@@ -867,8 +867,10 @@ email_html_create_send() {
         else
             Status="Database NOT verified ok"
         fi
-    else
+    elif [ -n "$RunningDaemonLine" ]; then
         Status="SQL info for $ServerName"
+    else
+        Status="Daemon is NOT RUNNING!"
     fi
 
     # Set the headers in order to use sendmail
