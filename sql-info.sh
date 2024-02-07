@@ -698,35 +698,38 @@ get_database_overview() {
 #   \____/  \___|  \__|     \__,_|  \__,_|  \___| |_| |_| |_|  \___/  |_| |_|    |_| |_| |_| |_|    \___/ 
 
 get_daemon_info() {
-    RunningDaemonLine="$(ps -ef n | grep -Ei "\b[m]ysqld\b|\b[m]ariadbd\b")"                                      # Ex: RunningDaemonLine='     999    2635    2594 33 04:46 ?        Ssl  126:15 mariadbd'
+    #RunningDaemonLine="$(ps -ef n | grep -Ei "\b[m]ysqld\b|\b[m]ariadbd\b")"                                      # Ex: RunningDaemonLine='     999    2635    2594 33 04:46 ?        Ssl  126:15 mariadbd'
     #                                                                                                                                           UID     PID    PPID  C STIME TTY      STAT   TIME CMD
     RunningDaemonLine="$(ps -eo uid,pid,ppid,cmd | grep -Ei "\b[m]ysqld\b|\b[m]ariadbd\b" | awk '{print $1" "$2" "$3" "$4}')"   # Ex:  RunningDaemonLine='27 1601 1276 /usr/libexec/mysqld'
-    RunningDaemonPID="$(echo "$RunningDaemonLine" | awk '{print $2}')"                                            # Ex: RunningDaemonPID=58310
-    RunningDaemonMemRSS="$(ps --no-headers -o rss:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemRSS=398
-    RunningDaemonMemVSZ="$(ps --no-headers -o vsz:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemVSZ=1920
-    RunningDaemonPPID="$(echo "$RunningDaemonLine" | awk '{print $3}')"                                           # Ex: RunningDaemonPPID=58288
-    RunningDaemonPPIDCommand="$(ps -p $RunningDaemonPPID -o cmd= | awk '{print $1}')"                             # Ex: RunningDaemonPPIDCommand=/usr/bin/containerd-shim-runc-v2
-    if [ -n "$(echo "$RunningDaemonPPIDCommand" | grep -Eo "containerd")" ]; then
-        Dockers="$(docker ps | grep -Ev "^CONTAINER" | awk '{print $NF}')"
-        # Ex: Dockers='moodledb
-        #              moodleweb'
-        while read DOCKER
-        do
-            if [ -n "$(docker top $DOCKER | grep -E "\b$RunningDaemonPID\b")" ]; then
-                RunningDocker="$DOCKER"                                                                           # Ex: RunningDocker=moodledb
-                RunningDockerStr="&nbsp;<i>(running inside docker <code>$RunningDocker</code>)</i>"
-                break
-            fi
-        done <<< "$Dockers"
+    # Only do the following if we find a running database daemon
+    if [ -n "$RunningDaemonLine" ]; then
+        RunningDaemonPID="$(echo "$RunningDaemonLine" | awk '{print $2}')"                                            # Ex: RunningDaemonPID=58310
+        RunningDaemonMemRSS="$(ps --no-headers -o rss:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemRSS=398
+        RunningDaemonMemVSZ="$(ps --no-headers -o vsz:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemVSZ=1920
+        RunningDaemonPPID="$(echo "$RunningDaemonLine" | awk '{print $3}')"                                           # Ex: RunningDaemonPPID=58288
+        RunningDaemonPPIDCommand="$(ps -p $RunningDaemonPPID -o cmd= 2>/dev/null | awk '{print $1}')"                 # Ex: RunningDaemonPPIDCommand=/usr/bin/containerd-shim-runc-v2
+        if [ -n "$(echo "$RunningDaemonPPIDCommand" | grep -Eo "containerd")" ]; then
+            Dockers="$(docker ps | grep -Ev "^CONTAINER" | awk '{print $NF}')"
+            # Ex: Dockers='moodledb
+            #              moodleweb'
+            while read DOCKER
+            do
+                if [ -n "$(docker top $DOCKER | grep -E "\b$RunningDaemonPID\b")" ]; then
+                    RunningDocker="$DOCKER"                                                                           # Ex: RunningDocker=moodledb
+                    RunningDockerStr="&nbsp;<i>(running inside docker <code>$RunningDocker</code>)</i>"
+                    break
+                fi
+            done <<< "$Dockers"
+        fi
+        RunningDaemonUID="$(echo "$RunningDaemonLine" | awk '{print $1}')"                                            # Ex: RunningDaemonUID=999
+        RunningDaemonUser="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f1)"                                   # Ex: RunningDaemonUser=systemd-coredump
+        RunningDaemonName="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f5)"                                   # Ex: RunningDaemonName='systemd Core Dumper'
+        RunningDaemon="$(echo "$RunningDaemonLine" | awk '{print $NF}')"                                              # Ex: RunningDaemon=mariadbd
+        RunningDaemonSecs="$(ps -p $RunningDaemonPID -o etimes= 2>/dev/null)"                                         # Ex: RunningDaemonSecs=' 112408'
+        RunningDaemonTimeH="$(time_convert $RunningDaemonSecs | sed 's/ [0-9]* sec$//')"                              # Ex: RunningDaemonTimeH='1 days 9 hours 19 min'
+        #RunningDaemonStartTime="$(ps -p $RunningDaemonPID -o lstart=)"                                                # Ex: RunningDaemonStartTime='Mon Jan 29 07:43:45 2024'
+        RunningDaemonStartTime="$(date +%F" "%T -d @"$(($(date +%s) - $(ps -p $RunningDaemonPID -o etimes=)))")"      # Ex: RunningDaemonStartTime='2024-01-29 07:43:45'
     fi
-    RunningDaemonUID="$(echo "$RunningDaemonLine" | awk '{print $1}')"                                            # Ex: RunningDaemonUID=999
-    RunningDaemonUser="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f1)"                                   # Ex: RunningDaemonUser=systemd-coredump
-    RunningDaemonName="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f5)"                                   # Ex: RunningDaemonName='systemd Core Dumper'
-    RunningDaemon="$(echo "$RunningDaemonLine" | awk '{print $NF}')"                                              # Ex: RunningDaemon=mariadbd
-    RunningDaemonSecs="$(ps -p $RunningDaemonPID -o etimes=)"                                                     # Ex: RunningDaemonSecs=' 112408'
-    RunningDaemonTimeH="$(time_convert $RunningDaemonSecs | sed 's/ [0-9]* sec$//')"                              # Ex: RunningDaemonTimeH='1 days 9 hours 19 min'
-    #RunningDaemonStartTime="$(ps -p $RunningDaemonPID -o lstart=)"                                                # Ex: RunningDaemonStartTime='Mon Jan 29 07:43:45 2024'
-    RunningDaemonStartTime="$(date +%F" "%T -d @"$(($(date +%s) - $(ps -p $RunningDaemonPID -o etimes=)))")"      # Ex: RunningDaemonStartTime='2024-01-29 07:43:45'
     UptimeSince="$(uptime -s)"                                                                                    # Ex: UptimeSince='2024-01-29 04:06:33'
 
     # Assemble the DaemonInfoStr
