@@ -50,6 +50,7 @@ CSS_colorfix="s/jobe_th_bgc/$jobe_th_bgc/g;s/jobe_th_c/$jobe_th_c/g;s/box_h_bgc/
 NL=$'\n'
 SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
+LastRunFile=~/.sql-info_last_run
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -282,14 +283,14 @@ version_ssl_library	The version of the TLS library that is being used"
     SQLVariableStr="        <tr><th align=\"right\" colspan=\"2\">SQL Variables</th></tr>
         <tr><td colspan=\"2\">
             <table>
-            <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
+                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
     while read VAR EXPLANATION
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
-            SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td></tr>$NL"
         else
-            SQLVariableStr+="        <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
         fi
     done <<< "$InterestingVariables"
     SQLVariableStr+="        </table>$SQLVariablesReadMoreStr</td></tr>$NL"
@@ -328,12 +329,14 @@ Slave_running
 Uptime	The number of seconds that the server has been up"
 
     SQLStatusStr="        <tr><th colspan=\"2\">SQL status</th></tr>
-        <tr><td colspan=\"2\"><table>$NL<tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
+        <tr><td colspan=\"2\">
+            <table>
+                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
     while read VAR EXPLANATION
     do
         #VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE '$VAR';" | awk '{print $2}')"
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
-        SQLStatusStr+="        <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+        SQLStatusStr+="            <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
     done <<< "$InterestingStatus"
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
 }
@@ -391,12 +394,12 @@ get_sql_users() {
     done <<< "$UserList"
 
     # Create the table part:
-    SQLUsersTablePart="            <tr><th align=\"right\" colspan=\"2\">SQL Users</th></tr>
-            <tr><td colspan=\"2\">$NumUsersinDB users exist. They have the following details:<br>$NL
-            <table>$NL
-            <tr><td><b>User</b></td><td><b>Host</b></td><td><b>Grants</b></td></tr>$NL
-            $UserTblString
-            </table></td></tr>$NL"
+    SQLUsersTablePart="        <tr><th align=\"right\" colspan=\"2\">SQL Users</th></tr>
+        <tr><td colspan=\"2\">$NumUsersinDB users exist. They have the following details:<br>
+        <table>
+            <tr><td><b>User</b></td><td><b>Host</b></td><td><b>Grants</b></td></tr>
+$UserTblString
+        </table></td></tr>$NL"
 }
 
 
@@ -464,8 +467,9 @@ get_storage_engines() {
     #                       1                      2       3          4       5       6
 
     StorageEngineStr="        <tr><th align=\"right\" colspan=\"2\">Storage engines</th></tr>
-        <tr><td colspan=\"2\"><table>
-        <tr><td><b>engine</b></td><td><b>Support</b></td><td align=\"right\"><b>tables</b></td><td align=\"right\"><b>num_rows</b></td><td align=\"right\"><b>data</b></td><td align=\"right\"><b>idx</b></td><td align=\"right\"><b>total_size</b></td></tr>$NL"
+        <tr><td colspan=\"2\">
+            <table>
+                <tr><td><b>engine</b></td><td><b>Support</b></td><td align=\"right\"><b>tables</b></td><td align=\"right\"><b>num_rows</b></td><td align=\"right\"><b>data</b></td><td align=\"right\"><b>idx</b></td><td align=\"right\"><b>total_size</b></td></tr>$NL"
     # Go through the supported engines and construct the table we need
     while read ENGINE SUPPORT
     do
@@ -479,9 +483,10 @@ get_storage_engines() {
         DATA="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $4}' | sed 's/GB/ GB/')"
         IDX="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $5}' | sed 's/GB/ GB/')"
         TOTAL_SIZE="$(echo "$StorageEngineUse" | grep "$ENGINE" | awk '{print $6}' | sed 's/GB/ GB/')"
-        StorageEngineStr+="        <tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
+        StorageEngineStr+="                <tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
     done <<< "$StorageEngines"
-    StorageEngineStr+="$NL</table><br><p><i>Read an overview of <a href="https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html">storage engines</a></i></p></td></tr>$NL"
+    StorageEngineStr+="            </table><br>
+		<p><i>Read an overview of <a href=\"https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html\">storage engines</a></i></p></td></tr>"
 }
 
 
@@ -518,15 +523,15 @@ do_mariadb_check() {
         #                       error    : Corrupt'
 
         # Assemble the string
-        DBCheckString="<tr><th align=\"right\" colspan=\"2\">Database verification</th></tr>$NL"
-        DBCheckString+="<tr><td>Method:</td><td><code>$DBCheckCommand</code></td></tr>$NL"
+        DBCheckString="        <tr><th align=\"right\" colspan=\"2\">Database verification</th></tr>$NL"
+        DBCheckString+="        <tr><td>Method:</td><td><code>$DBCheckCommand</code></td></tr>$NL"
         if [ -z "$MariaCheckErrors" ]; then
-            DBCheckString+="<tr><td>Status:</td><td style=\"color: green;\">All OK</td></tr>$NL"
+            DBCheckString+="        <tr><td>Status:</td><td style=\"color: green;\">All OK</td></tr>$NL"
         else
-            DBCheckString+="<tr><td>Status:</td><td style=\"color: red;\">Corruption detected</td></tr>$NL"
-            DBCheckString+="<tr><td colspan=\"2\">Details:<br><pre style=\"color: red;\">$MariaCheckErrors</pre></td></tr>$NL"
+            DBCheckString+="        <tr><td>Status:</td><td style=\"color: red;\">Corruption detected</td></tr>$NL"
+            DBCheckString+="        <tr><td colspan=\"2\">Details:<br><pre style=\"color: red;\">$MariaCheckErrors</pre></td></tr>$NL"
         fi
-        DBCheckString+="<tr><td>Time taken:</td><td>${DBCheckTime:-0 sec}</td></tr>$NL"
+        DBCheckString+="        <tr><td>Time taken:</td><td>${DBCheckTime:-0 sec}</td></tr>$NL"
     else
         DBCheckString=""
     fi
@@ -567,10 +572,11 @@ get_database_overview() {
     NumDB=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW DATABASES;" | wc -l)        # Ex: NumDB=5
 
     # Create the table part:
-    DatabaseTblString="<tr><th align=\"right\" colspan="2">Databases &amp; tables</th></tr>$NL
-        <tr><td colspan="2">The following $NumDB databases exists:</td></tr>$NL
-        <tr><td colspan="2"><table>$NL
-        <tr><td><b>Database</b>&nbsp;&#8595;</td><td align=\"right\"><b>Num. tables</b></td><td align=\"right\"><b>&sum; rows</b></td><td align=\"right\"><b>&sum; table data [B]</b></td><td align=\"right\"><b>&sum; index data [B]</b></td><td><b>Data on disk</b></td><td><b>Table collation</b></td><td><b>Created</b></td><td><b>Storage engine</b></td></tr>$NL"
+    DatabaseTblString="        <tr><th align=\"right\" colspan=\"2\">Databases &amp; tables</th></tr>$NL
+        <tr><td colspan=\"2\">The following $NumDB databases exists:</td></tr>$NL
+        <tr><td colspan=\"2\">
+        <table>
+            <tr><td><b>Database</b>&nbsp;&#8595;</td><td align=\"right\"><b>Num. tables</b></td><td align=\"right\"><b>&sum; rows</b></td><td align=\"right\"><b>&sum; table data [B]</b></td><td align=\"right\"><b>&sum; index data [B]</b></td><td><b>Data on disk</b></td><td><b>Table collation</b></td><td><b>Created</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read DB NumTables SumRows SumDataLength SumIndexLength DataFree Collation CreateTime UpdateTime Engine
     do
         DatabaseDiskVolume="$(du -skh $DB_ROOT/$DB 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"                            # Ex: DatabaseDiskVolume='48 GiB'
@@ -582,9 +588,9 @@ get_database_overview() {
         #if [ -z "$IndexLength" ]; then
         #    IndexLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumIndexLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
         #fi
-        DatabaseTblString+="        <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
+        DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
-    DatabaseTblString+="</table></td></tr>"
+    DatabaseTblString+="        </table></td></tr>$NL"
 
     # Get data for the 5 largest tables
     #FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),FORMAT((DATA_LENGTH+INDEX_LENGTH)/1024/1024,0),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
@@ -605,9 +611,9 @@ get_database_overview() {
 
     FiveLargestTables="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NB -e "$FiveLargestTablesSQL")"
     # Create the table part:
-    DatabaseTblString+="<tr><td colspan=\"2\">The five largest tables:
-    <table>
-    <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td align=\"right\"><b>&sum; size [B]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
+    DatabaseTblString+="        <tr><td colspan=\"2\">The five largest tables:
+        <table>
+            <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td align=\"right\"><b>&sum; size [B]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
         #case "${StorageEngine,,}" in
@@ -625,10 +631,10 @@ get_database_overview() {
         #if [ -< "$Size" ]; then
         #    Size="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumSize 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
         #fi
-        DatabaseTblString+="        <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$(printf "%'.1f" $Fragmentation)%</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
+        DatabaseTblString+="            <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$(printf "%'.1f" $Fragmentation)%</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
-    DatabaseTblString+="</table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
-            <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>$NL"
+    DatabaseTblString+="        </table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
+        <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>"
 
 
     Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')      # Ex: Port=3306
@@ -676,9 +682,9 @@ get_database_overview() {
     if [ "$ReplicaStatus" ]; then
         ReplicaStatus="<i>None detected</i>"
     fi
-    MainReplicaString="        <tr><th align=\"right\" colspan=\"2\">Main / replica</th></tr>$NL
-        <tr><td>Main status</td><td>$MasterStatus</td></tr>$NL
-        <tr><td>Replica status</td><td>$ReplicaStatus</td></tr>$NL"
+    MainReplicaString="        <tr><th align=\"right\" colspan=\"2\">Main / replica</th></tr>
+        <tr><td>Main status</td><td>$MasterStatus</td></tr>
+        <tr><td>Replica status</td><td>$ReplicaStatus</td></tr>"
 
 }
 
@@ -724,12 +730,12 @@ get_daemon_info() {
     UptimeSince="$(uptime -s)"                                                                                    # Ex: UptimeSince='2024-01-29 04:06:33'
 
     # Assemble the DaemonInfoStr
-    DaemonInfoStr="<tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
+    DaemonInfoStr="        <tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
     DaemonInfoStr+="$EnvironmentStr"
     if [ -n "$RunningDaemonLine" ]; then
         DaemonInfoStr+="        <tr><td>Daemon:</td><td><code>$RunningDaemon</code>$RunningDockerStr</td></tr>$NL"
         DaemonInfoStr+="        <tr><td>PID:</td><td><code>$(echo "$RunningDaemonPID" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/<\/code><br><code>/g')</code></td></tr>$NL"
-        DaemonInfoStr+="        <tr><td>Memory, PID & OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
+        DaemonInfoStr+="        <tr><td>Memory, PID &amp; OS:</td><td>Real (RSS): $(printf "%'d" "$RunningDaemonMemRSS") MB${SepatarorStr}Virtual (VSZ): $(printf "%'d" "$RunningDaemonMemVSZ") MB${SepatarorStr}RAM available: $RAMAvailable GB</td></tr>$NL"
         DaemonInfoStr+="        <tr><td>User:</td><td><pre>$RunningDaemonUID ($RunningDaemonUser; &#8220;$RunningDaemonName&#8221;)</pre></td></tr>$NL"
         DaemonInfoStr+="        <tr><td>Parent command:</td><td><pre>$RunningDaemonPPIDCommand (PID: $RunningDaemonPPID)</pre></td></tr>$NL"
         DaemonInfoStr+="        <tr><td>Daemon started:</td><td>$RunningDaemonStartTime<em> ($RunningDaemonTimeH ago)</em></td></tr>$NL"
@@ -746,6 +752,19 @@ get_daemon_info() {
             DaemonInfoStr+="        <tr><td><code>systemctl&nbsp;</code>:</td><td><pre>$SystemctlStatus</pre></td></tr>$NL"
         fi
     fi
+}
+
+
+get_last_known_good_data() {
+    LastRunFileDatetime="$(stat --format %x "$LastRunFile" | sed 's/\.[0-9]*//')"                  # Ex: LastRunFileDatetime='2024-02-07 08:55:05 +0100'
+    echo "    	  <p>&nbsp;</p>" >> $EmailTempFile
+    echo "	  <p>&nbsp;</p>" >> $EmailTempFile
+    echo "	  <h1 align=\"center\">Last known good data</h1>" >> $EmailTempFile
+    echo "	  <p align=\"center\">Date: $LastRunFileDatetime</p>" >> $EmailTempFile
+    echo "	  <p>&nbsp;</p>" >> $EmailTempFile
+    echo "	  <table id=\"jobe\">" >> $EmailTempFile
+    echo "		  <tbody>" >> $EmailTempFile
+    cat "$LastRunFile" >> $EmailTempFile
 }
 
 
@@ -799,6 +818,8 @@ assemble_web_page() {
             echo "$StorageEngineStr" >> $EmailTempFile
             echo "$SQLVariableStr" >> $EmailTempFile
             echo "$SQLStatusStr" >> $EmailTempFile
+        else
+            get_last_known_good_data
         fi
         echo "      </tbody>" >> $EmailTempFile
         echo "    </table>" >> $EmailTempFile
@@ -905,6 +926,8 @@ if [ -n "$RunningDaemonLine" ]; then
     do_mariadb_check
 
     get_database_overview
+
+    echo "$DaemonInfoStr$NL$DatabaseTblString" > "$LastRunFile"
 fi
 
 email_html_create_send
