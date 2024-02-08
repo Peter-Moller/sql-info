@@ -349,7 +349,7 @@ do_mariadb_check() {
 get_database_overview() {
     DatabasesToHide="information_schema|performance_schema|mysql"
     #DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME),FORMAT(SUM(TABLE_ROWS),0),FORMAT(SUM(DATA_LENGTH),0),FORMAT(SUM(INDEX_LENGTH),0),DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
-    DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME) AS Num_tables, FORMAT(SUM(TABLE_ROWS),0) AS ∑_rows, FORMAT(SUM(DATA_LENGTH),0) AS ∑_data, FORMAT(SUM(INDEX_LENGTH),0) AS ∑_index, DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
+    DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME) AS Num_tables, FORMAT(SUM(TABLE_ROWS),0) AS sum_rows, FORMAT(SUM(DATA_LENGTH),0) AS sum_data, FORMAT(SUM(INDEX_LENGTH),0) AS sum_index, DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
     DatabaseOverview="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "$DatabaseOverviewSQL" | tr -d '\r')"
     # Ex: DatabaseOverview='information_schema     79          NULL         106,496         106,496        0    utf8mb3_general_ci  2024-02-06 19:38:39  2024-02-06 19:38:39  Aria
     #                       moodle                510   100,056,805  36,599,554,048  11,567,128,576        0    utf8mb4_unicode_ci  2024-01-18 13:15:42  NULL                 InnoDB
@@ -394,7 +394,7 @@ get_database_overview() {
 
     # Get data for the 5 largest tables
     #FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),FORMAT((DATA_LENGTH+INDEX_LENGTH)/1024/1024,0),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
-    FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0) AS Num_rows,FORMAT((DATA_LENGTH+INDEX_LENGTH),0) AS ∑_size,ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) AS Fragm FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
+    FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0) AS Num_rows,FORMAT((DATA_LENGTH+INDEX_LENGTH),0) AS sum_size,ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) AS Fragm FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
     # Ex: FiveLargestTables='moodle mdl_question_attempt_step_data  54,278,475  26,836,205,568  InnoDB  2024-01-18 13:50:02  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.0
     #                        moodle mdl_logstore_standard_log       23,341,868  11,951,456,256  InnoDB  2024-01-18 13:20:30  2024-02-06 19:50:37    utf8mb4_unicode_ci  0.1
     #                        moodle mdl_question_attempt_steps      11,207,358   2,299,527,168  InnoDB  2024-01-18 14:20:36  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.6
