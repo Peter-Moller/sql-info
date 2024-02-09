@@ -53,7 +53,8 @@ NL=$'\n'
 SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
-Version="2024-02-09.1"
+LinkReferer='target="_blank" rel="noopener noreferrer"'
+Version="2024-02-09.2"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -360,16 +361,6 @@ get_database_overview() {
     #                       Database           #table          ∑row    ∑data_length   ∑index_length  DataFree   Collation           Created              Updated              Storage Engine
     #                         1                     2             3               4               5         6   7                   8                    9                      10
 
-    ##DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME),FORMAT(SUM(TABLE_ROWS),0),SUM(DATA_LENGTH),SUM(INDEX_LENGTH),DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
-    # Ex: DatabaseOverview='information_schema          79             NULL         106,496         106,496         0   utf8mb3_general_ci  2024-02-05 20:14:58  2024-02-05 20:14:58    Aria
-    #                       moodle                     510      100,054,996  36,590,018,560  11,565,973,504         0   utf8mb4_unicode_ci  2024-01-18 13:15:42  NULL                   InnoDB
-    #                       mysql                       31          146,501       9,912,320       2,727,936         0   utf8mb3_general_ci  2024-01-18 14:31:27  2024-01-18 14:31:27    Aria
-    #                       performance_schema          81              535               0               0         0   utf8mb3_general_ci  NULL                 NULL                   PERFORMANCE_SCHEMA
-    #                       sys                        101                6          16,384          16,384      NULL   NULL                NULL                 NULL                   NULL'
-    #                       Database                #table             ∑row    ∑data_length   ∑index_length  DataFree   Collation           Created              Updated                Storage Engine
-    #                         1                          2                3               4               5         6   7                   8                    9                      10
-    # Ex: DatabaseOverview='moodle         510                 99,833,991                36,585,676,800              0          utf8mb4_unicode_ci  2024-01-29 06:43:46  NULL                 InnoDB    
-    #                       mysql           31                 144,721                   9,912,320                   0          utf8mb3_general_ci  2024-01-18 14:31:27  2024-01-29 06:39:23  Aria      '
     NumDB=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW DATABASES;" | wc -l)        # Ex: NumDB=5
 
     # Create the table part:
@@ -381,38 +372,26 @@ get_database_overview() {
     while read DB NumTables SumRows SumDataLength SumIndexLength DataFree Collation CreateTime UpdateTime Engine
     do
         DatabaseDiskVolume="$(du -skh $DB_ROOT/$DB 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"                            # Ex: DatabaseDiskVolume='48 GiB'
-        DataLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"             # Ex: DataLength='34.1 GiB'
+        DataLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" ${SumDataLength//,/} 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"             # Ex: DataLength='34.1 GiB'
         # Determine if the unit differ and if so, set flag to display infromation about this
         if [ ! "$(echo "$DatabaseDiskVolume" | awk '{print $NF}')" = "$(echo "$DataLength" | awk '{print $NF}')" ]; then
-            InconsistentSizeWarningString="<br><i><b>NOTE:</b> the size of &#8220;&sum; table data [B]&#8221; (according to 'information_schema') and &#8220;Data on disk&#8221; <b>differs</b>! That is due to how the tables were created.</i><br>"
+            InconsistentSizeWarningString="<br><i><b>*</b> the size of &#8220;&sum; table data [B]&#8221; (according to 'information_schema') and &#8220;Data on disk&#8221; <b>differs</b>! That is due to how the tables were created.</i><br>"
+            DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td><td><code> *</code></td></tr>$NL"
+        else
+            DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
         fi
-        #if [ -z "$DataLength" ]; then
-        #    DataLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
-        #fi
-        #IndexLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumIndexLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"           # Ex: IndexLength='10.8 GiB'
-        #if [ -z "$IndexLength" ]; then
-        #    IndexLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumIndexLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
-        #fi
-        DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
+        #DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
-    DatabaseTblString+="        </table></td></tr>$NL"
+    DatabaseTblString+="        </table>$InconsistentSizeWarningString<br></td></tr>$NL"
 
     # Get data for the 5 largest tables
-    #FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),FORMAT((DATA_LENGTH+INDEX_LENGTH)/1024/1024,0),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
     FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0) AS Num_rows,FORMAT((DATA_LENGTH+INDEX_LENGTH),0) AS sum_size,ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) AS Fragm FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
-    # Ex: FiveLargestTables='moodle mdl_question_attempt_step_data  54,278,475  26,836,205,568  InnoDB  2024-01-18 13:50:02  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.0
-    #                        moodle mdl_logstore_standard_log       23,341,868  11,951,456,256  InnoDB  2024-01-18 13:20:30  2024-02-06 19:50:37    utf8mb4_unicode_ci  0.1
-    #                        moodle mdl_question_attempt_steps      11,207,358   2,299,527,168  InnoDB  2024-01-18 14:20:36  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.6
-    #                        moodle mdl_grade_grades_history         3,002,327   1,545,175,040  InnoDB  2024-01-18 13:16:57  2024-02-06 19:49:13    utf8mb4_unicode_ci  0.8
-    #                        moodle mdl_question_attempts            1,653,458   3,970,580,480  InnoDB  2024-01-18 14:25:51  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.2'
-
-    #FiveLargestTablesSQL="SELECT TABLE_SCHEMA,TABLE_NAME,FORMAT(TABLE_ROWS,0),(DATA_LENGTH+INDEX_LENGTH),ENGINE,CREATE_TIME,UPDATE_TIME,TABLE_COLLATION,ROUND((DATA_FREE/DATA_LENGTH)*100.0,1) FROM information_schema.TABLES ORDER BY TABLE_ROWS DESC LIMIT 5;"
-    # Ex: FiveLargestTables='moodle   mdl_question_attempt_step_data  54,183,632  25,593   InnoDB  2024-01-18 13:50:02   2024-01-28 10:27:07  utf8mb4_unicode_ci  0.0
-    #                        moodle   mdl_logstore_standard_log       23,284,656  11,398   InnoDB  2024-01-18 13:20:30   2024-01-28 10:27:09  utf8mb4_unicode_ci  0.1
-    #                        moodle   mdl_question_attempt_steps      11,190,335   2,193   InnoDB  2024-01-18 14:20:36   2024-01-28 10:27:07  utf8mb4_unicode_ci  0.6
-    #                        moodle   mdl_grade_grades_history         3,000,117   1,474   InnoDB  2024-01-18 13:16:57   2024-01-28 10:26:57  utf8mb4_unicode_ci  1.3
-    #                        moodle   mdl_question_attempts            1,650,937   3,787   InnoDB  2024-01-18 14:25:51   2024-01-28 10:27:07  utf8mb4_unicode_ci  0.1'
-    #                        Schema   table_name                    ∑_table_rows  ∑_size   Engine  Created               Updated              Collation           Fragmentation
+    # Ex: FiveLargestTables='moodle  mdl_question_attempt_step_data  54,278,475  26,836,205,568  InnoDB  2024-01-18 13:50:02  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.0
+    #                        moodle  mdl_logstore_standard_log       23,341,868  11,951,456,256  InnoDB  2024-01-18 13:20:30  2024-02-06 19:50:37    utf8mb4_unicode_ci  0.1
+    #                        moodle  mdl_question_attempt_steps      11,207,358   2,299,527,168  InnoDB  2024-01-18 14:20:36  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.6
+    #                        moodle  mdl_grade_grades_history         3,002,327   1,545,175,040  InnoDB  2024-01-18 13:16:57  2024-02-06 19:49:13    utf8mb4_unicode_ci  0.8
+    #                        moodle  mdl_question_attempts            1,653,458   3,970,580,480  InnoDB  2024-01-18 14:25:51  2024-02-06 19:50:35    utf8mb4_unicode_ci  0.2'
+    #                        Schema  table_name                    ∑_table_rows          ∑_size  Engine  Created              Updated                Collation           Fragmentation
 
     FiveLargestTables="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NB -e "$FiveLargestTablesSQL")"
     # Create the table part:
@@ -421,37 +400,18 @@ get_database_overview() {
             <tr><td><b>Database</b></td><td><b>Table Name</b></td><td><b>Nbr. of rows</b>&nbsp;&#8595;</td><td align=\"right\"><b>&sum; size [B]</b></td><td><b>Disk use</b></td><td><b>Fragm.</b></td><td><b>Collation</b></td><td><b>Created</b></td><td><b>Updated</b></td><td><b>Storage engine</b></td></tr>$NL"
     while read TableSchema TableName SumRows SumSize StorageEngine Created Updated Collation Fragmentation
     do
-        #case "${StorageEngine,,}" in
-        #    "innodb" ) Extension="[Ii][Bb][Dd]";;
-        #    "aria" )   Extension="[Mm][Aa][Ii]";;
-        #    "myisam" ) Extension="[Mm][Yy][Dd]";;
-        #esac
         TableDiskVolumeB="$(ls -ls $DB_ROOT/$TableSchema/${TableName}* | awk '{sum+=$6} END {print sum}')"               # Ex: TableDiskVolumeB=27816625772
-        #TableDiskVolume="$(du -skh $DB_ROOT/$TableSchema/${TableName}."Extension" 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"     # Ex: TableDiskVolume='3.9 GiB'
         TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"     # Ex: TableDiskVolume='26.0 GiB'
         if [ -z "$TableDiskVolume" ]; then
             TableDiskVolume="$(numfmt --to=iec-i --suffix=B --format="%9f" $TableDiskVolumeB 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"   # Ex: TableDiskVolume='26 GiB'
         fi
-        #Size="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumSize 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"                         # Ex: Size='25.0 GiB'
-        #if [ -< "$Size" ]; then
-        #    Size="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumSize 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
-        #fi
         DatabaseTblString+="            <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$(printf "%'.1f" $Fragmentation)%</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
-    DatabaseTblString+="        </table>$InconsistentSizeWarningString<br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
+    DatabaseTblString+="        </table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
         <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>"
 
 
     Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')      # Ex: Port=3306
-    if [ -x /bin/lsof ]; then
-        OpenSQLPorts="$(/bin/lsof -i:$Port)"
-    elif [ -x /sbin/lsof ]; then
-        OpenSQLPorts="$(/sbin/lsof -i:$Port)"
-    fi
-    # Ex: OpenSQLPorts='COMMAND    PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
-    #                   docker-pr 1629 root    4u  IPv4  38869      0t0  TCP *:mysql (LISTEN)
-    #                   docker-pr 1639 root    4u  IPv6  38877      0t0  TCP *:mysql (LISTEN)'
-
     # Get open ports:
     # lsof -i:3306 +c15
     # COMMAND       PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
@@ -527,14 +487,6 @@ get_sql_users() {
     #                  SHOW GRANTS FOR '\''root'\''@'\''localhost'\'';'
     # READ MORE: https://dev.mysql.com/doc/refman/8.0/en/show-grants.html
     
-    ##GrantString="$(while read -r ROW; do ${SQLCommand/-it/} -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "$ROW" | sed "s/'[^']*'/'XXX'/"; done <<< "$UserQString")"
-    # Ex: GrantString='GRANT REPLICATION SLAVE ON *.* TO `replication_user`@`%` IDENTIFIED BY PASSWORD '\''XXX'\''
-    #                  GRANT ALL PRIVILEGES ON *.* TO `root`@`%` IDENTIFIED BY PASSWORD '\''XXX'\'' WITH GRANT OPTION
-    #                  GRANT USAGE ON *.* TO `mariadb.sys`@`localhost`
-    #                  GRANT SELECT, DELETE ON `mysql`.`global_priv` TO `mariadb.sys`@`localhost`
-    #                  GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` IDENTIFIED BY PASSWORD '\''XXX'\'' WITH GRANT OPTION
-    #                  GRANT PROXY ON '\''XXX'\''@'\''%'\'' TO '\''root'\''@'\''localhost'\'' WITH GRANT OPTION'
-
     # Get the number of users
     NumUsersinDB=$(echo "$UserList" | wc -l)                                                       # Ex: NumUsersinDB=49
 
@@ -595,8 +547,6 @@ get_storage_engines() {
 
     # Storage Engine Use:
     StorageEngineCommand="SELECT engine, count(*) AS tables, concat(round (sum(table_rows)/(1000000), 2), 'M') AS num_rows, concat(round(sum(data_length)/(1024*1024*1024),2), 'GB') AS data, concat(round (sum(index_length)/(1024*1024*1024),2), 'GB') AS idx, concat(round (sum(data_length+index_length)/ (1024*1024*1024), 2), 'GB') AS total_size FROM information_schema.TABLES GROUP BY engine ORDER BY engine ASC"
-    # Ex: MariaDB [moodle]> SELECT engine, count(*) AS tables, concat(round (sum(table_rows)/(1000000), 2), 'M') AS num_rows, concat(round(sum(data_length)/(1024*1024*1024),2), 'GB') AS data, concat(round (sum(index_length)/(1024*1024*1024),2), 'GB') AS idx, concat(round (sum(data_length+index_length)/ (1024*1024*1024), 2), 'GB') AS total_size FROM information_schema.TABLES GROUP BY engine ORDER BY engine asc;
-    # MariaDB [moodle]> SELECT engine, count(*) AS tables, concat(round (sum(table_rows)/(1000000), 2), 'M') AS num_rows, concat(round(sum(data_length)/(1024*1024*1024),2), 'GB') AS data, concat(round (sum(index_length)/(1024*1024*1024),2), 'GB') AS idx, concat(round (sum(data_length+index_length)/ (1024*1024*1024), 2), 'GB') AS total_size FROM information_schema.TABLES GROUP BY engine ORDER BY engine asc;
     # +--------------------+--------+----------+---------+---------+------------+
     # | engine             | tables | num_rows | data    | idx     | total_size |
     # +--------------------+--------+----------+---------+---------+------------+
@@ -639,7 +589,7 @@ get_storage_engines() {
         StorageEngineStr+="                <tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
     done <<< "$StorageEngines"
     StorageEngineStr+="            </table><br>
-        <p><i>Read an overview of <a href=\"https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html\">storage engines</a></i></p></td></tr>"
+        <p><i>Read an overview of <a href=\"https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html\" $LinkReferer>storage engines</a></i></p></td></tr>"
 }
 
 
@@ -652,8 +602,6 @@ get_storage_engines() {
 #  \____/   \_/\_\ \_____/      \__/    \__,_| |_|    |_|  \__,_| |_.__/  |_|  \___| |___/
 
 get_sql_variables() {
-    #InterestingVariables="^binlog_expire_logs_seconds\b|^binlog_file_cache_size\b|^collation_connection\b|^collation_database\b|^collation_server\b|^datadir\b|^default_storage_engine\b|^general_log_file\b|^have_ssl\b|^hostname\b|^log_slow_query\b|^log_slow_query_file\b|^log_slow_query_time\b|^performance_schema\b|^pid_file\b|^plugin_dir\b|^port\b|^socket\b|^tls_version\b|^version\b|^version_ssl_library\b"
-    SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/">Server System Variables</a>.</i></p>'
     InterestingVariables="binlog_expire_logs_seconds;The binary log expiration period in seconds;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_expire_logs_seconds
 binlog_file_cache_size;Size of in-memory cache that is allocated when reading binary log and relay log files;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_file_cache_size
 collation_connection;Collation used for the connection character set;https://mariadb.com/kb/en/server-system-variables/#collation_connection
@@ -678,35 +626,6 @@ tls_version;Which protocols the server permits for encrypted connections;https:/
 version;The version number for the server;https://mariadb.com/kb/en/server-system-variables/#version
 version_ssl_library;The version of the TLS library that is being used;https://mariadb.com/kb/en/ssltls-system-variables/#version_ssl_library"
 
-    #SQLVariables="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES;" | grep -E "$InterestingVariables")"
-    # Ex: SQLVariables='binlog_expire_logs_seconds  864000
-    #                   binlog_file_cache_size  16384
-    #                   collation_connection    utf8mb3_general_ci
-    #                   collation_database  utf8mb4_general_ci
-    #                   collation_server    utf8mb4_general_ci
-    #                   datadir /var/lib/mysql/
-    #                   date_format %Y-%m-%d
-    #                   datetime_format %Y-%m-%d %H:%i:%s
-    #                   default_storage_engine  InnoDB
-    #                   general_log_file    0f552df2da7f.log
-    #                   have_ssl    DISABLED
-    #                   hostname    0f552df2da7f
-    #                   log_slow_query  ON
-    #                   log_slow_query_file slow-queries.log
-    #                   log_slow_query_time 1.000000
-    #                   performance_schema  OFF
-    #                   pid_file    /run/mysqld/mysqld.pid
-    #                   plugin_dir  /usr/lib/mysql/plugin/
-    #                   port    3306
-    #                   slow_query_log  ON
-    #                   slow_query_log_file slow-queries.log
-    #                   socket  /run/mysqld/mysqld.sock
-    #                   storage_engine  InnoDB
-    #                   tls_version TLSv1.1,TLSv1.2,TLSv1.3
-    #                   version 10.11.4-MariaDB-1:10.11.4+maria~ubu2204-log
-    #                   version_ssl_library OpenSSL 3.0.2 15 Mar 2022'
-    # READ MORE: https://dev.mysql.com/doc/refman/8.0/en/show-variables.html
-
     SQLVariableStr="        <tr><th align=\"right\" colspan=\"2\">SQL Variables</th></tr>
         <tr><td colspan=\"2\">
             <table>
@@ -715,11 +634,12 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
-            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\">&#128214;</a></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a></td></tr>$NL"
         else
-            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\">&#128214;</a></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a></td></tr>$NL"
         fi
     done <<< "$InterestingVariables"
+    SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/" '$LinkReferer'>Server System Variables</a>.</i></p>'
     SQLVariableStr+="        </table>$SQLVariablesReadMoreStr</td></tr>$NL"
 
 #    # Print it:
@@ -738,30 +658,28 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
 #  /\__/ / \ \/' / | |____    /\__/ / | |_  | (_| | | |_  | |_| | \__ \
 #  \____/   \_/\_\ \_____/    \____/   \__|  \__,_|  \__|  \__,_| |___/
 get_sql_status() {
-    SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/">Server Status Variables</a>.</i></p>'
-    InterestingStatus="Aborted_clients  The number of connections that were aborted because the client died without closing the connection properly
-Aborted_connects    The number of failed attempts to connect to the MySQL server
-Compression Whether the client connection uses compression in the client/server protocol.
-Connections The number of connection attempts (successful or not) to the MySQL server.
-Connection_errors_accept    The number of errors that occurred during calls to accept() on the listening port
-Connection_errors_internal  The number of connections refused due to internal errors in the server, such as failure to start a new thread or an out-of-memory condition
-Handler_read_first  Number of requests to read the first row from an index. A high value indicates many full index scans.
-Handler_read_rnd    Number of requests to read a row based on its position.
-innodb_buffer_pool_size The size in bytes of the buffer pool, the memory area where InnoDB caches table and index data. Default is 128 MB.<br><a href=\"https://mariadb.com/kb/en/innodb-buffer-pool/\">Read about InnoDB Buffer Pool</a>
-Max_statement_time_exceeded If set, any query taking longer than this value (in seconds) to execute will be aborted
-Max_used_connections    The maximum number of connections that have been in use simultaneously since the server started
-Open_files  Number of files that are open, including regular files opened by the server but not sockets or pipes
-Open_tables The number of tables that are open
-Opened_tables   Number of tables the server has opened.
-Queries The number of statements executed by the server
-Rpl_semi_sync_slave_status  Shows whether semisynchronous replication is currently operational on the replica
-Select_full_join    Number of joins which did not use an index. If not zero, you may need to check table indexes.
-Select_range    Number of joins which used a range on the first table.
-Select_range_check  Number of joins without keys that check for key usage after each row. If not zero, you may need to check table indexes.
-Select_scan Number of joins which used a full scan of the first table.
-Sort_rows   Number of rows sorted.
-Slave_running   
-Uptime  The number of seconds that the server has been up"
+    InterestingStatus="Aborted_clients%The number of connections that were aborted because the client died without closing the connection properly%https://mariadb.com/kb/en/server-status-variables/#aborted_clients
+Aborted_connects%The number of failed attempts to connect to the MySQL server%https://mariadb.com/kb/en/server-status-variables/#aborted_connects
+Compression%Whether the client connection uses compression in the client/server protocol.%https://mariadb.com/kb/en/server-status-variables/#compression
+Connections%The number of connection attempts (successful or not) to the MySQL server.%https://mariadb.com/kb/en/server-status-variables/#connections
+Connection_errors_accept%The number of errors that occurred during calls to accept() on the listening port%https://mariadb.com/kb/en/server-status-variables/#connection_errors_accept
+Connection_errors_internal%Number of refused connections due to internal server errors, for example out of memory errors, or failed thread starts%https://mariadb.com/kb/en/server-status-variables/#connection_errors_internal
+Handler_read_first%Number of requests to read the first row from an index<br>&#9888;&nbsp;&nbsp;A high value indicates many full index scans%https://mariadb.com/kb/en/server-status-variables/#handler_read_first
+Handler_read_rnd%Number of requests to read a row based on its position<br>&#9888;&nbsp;&nbsp;If this value is high, you may not be using joins that don't use indexes properly, or be doing many full table scans%https://mariadb.com/kb/en/server-status-variables/#handler_read_rnd
+Max_statement_time_exceeded%Number of queries that exceeded the execution time specified by max_statement_time.%https://mariadb.com/kb/en/server-status-variables/#max_statement_time_exceeded
+Max_used_connections%The maximum number of connections that have been in use simultaneously since the server started%https://mariadb.com/kb/en/server-status-variables/#max_used_connections
+Open_files%Number of files that are open, including regular files opened by the server but not sockets or pipes%https://mariadb.com/kb/en/server-status-variables/#open_files
+Open_tables%The number of tables that are open%https://mariadb.com/kb/en/server-status-variables/#open_tables
+Opened_tables%Number of tables the server has opened.%https://mariadb.com/kb/en/server-status-variables/#opened_tables
+Queries%The number of statements executed by the server%https://mariadb.com/kb/en/server-status-variables/#queries
+Rpl_semi_sync_slave_status%Shows whether semisynchronous replication is currently operational on the replica%https://mariadb.com/kb/en/semisynchronous-replication-plugin-status-variables/#rpl_semi_sync_slave_status
+Select_full_join%Number of joins which did not use an index<br>&#9888;&nbsp;&nbsp;If not zero, you may need to check table indexes%https://mariadb.com/kb/en/server-status-variables/#select_full_join
+Select_range%Number of joins which used a range on the first table.%https://mariadb.com/kb/en/server-status-variables/#select_range
+Select_range_check%Number of joins without keys that check for key usage after each row<br>&#9888;i&nbsp;&nbsp;If not zero, you may need to check table indexes%https://mariadb.com/kb/en/server-status-variables/#select_range_check
+Select_scan%Number of joins which used a full scan of the first table.%https://mariadb.com/kb/en/server-status-variables/#select_scan
+Sort_rows%Number of rows sorted.%https://mariadb.com/kb/en/server-status-variables/#sort_rows
+Slave_running%Whether the default connection slave is running (both I/O and SQL threads are running) or not.%https://mariadb.com/kb/en/replication-and-binary-log-status-variables/
+Uptime%The number of seconds that the server has been up%https://mariadb.com/kb/en/server-status-variables/#uptime"
 
     # get the server uptime (needed for calculations)
     DaemonUptime=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Uptime';" | awk '{print $2}')      # Ex: DaemonUptime=201346
@@ -769,57 +687,15 @@ Uptime  The number of seconds that the server has been up"
     SQLStatusStr="        <tr><th colspan=\"2\">SQL status</th></tr>
         <tr><td colspan=\"2\">
             <table>
-                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
-    while read VAR EXPLANATION
+                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td><td><b>Read more</b></td></tr>$NL"
+    while IFS="%" read VAR EXPLANATION READMORE
     do
         EVALUATION=""
         #VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE '$VAR';" | awk '{print $2}')"
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
-        if [ -n "$VALUE" ]; then
-            if [ ${VALUE//,/} -gt 0 ]; then
-                RATE=$(( $(echo "${VALUE//,/}") / $((DaemonUptimeH*3600)) ))      # RATE = $VALUE per hour, per hour the server has been up
-            else
-                RATE=0
-            fi
-        fi
-        case $VAR in
-            "Open_files" )         if [ $RATE -gt $((DaemonUptimeH*5)) ]; then
-                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 5 per hour."
-                                   else
-                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 5 per hour."
-                                   fi;
-                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
-            "Opened_tables" )      if [ $RATE -gt $((DaemonUptimeH*10)) ]; then
-                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 10 per hour."
-                                   else
-                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 10 per hour."
-                                   fi;
-                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
-            "Handler_read_first" ) if [ $RATE -gt $DaemonUptimeH ]; then
-                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 1 per hour."
-                                   else
-                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 1 per hour."
-                                   fi;
-                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
-            "Handler_read_rnd" )   if [ $RATE -gt $DaemonUptimeH ]; then
-                                       EVALUATION="Rate is too high: $(printf "%'d" $RATE) (based on total uptime). Should be less than 1 per hour."
-                                   else
-                                       EVALUATION="OK ($RATE, based on total uptime). Should be less than 1 per hour."
-                                   fi;
-                                   EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
-            "Uptime" )             EXPLANATION="$EXPLANATION ($(time_convert ${VALUE//,/} | sed 's/ [0-9]* sec$//')).";;
-        esac
-        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a></td></tr>$NL"
     done <<< "$InterestingStatus"
-    Select_range_check=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_range_check';" | awk '{print $2}') # Ex: Select_range_check=0
-    Select_scan=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_scan';" | awk '{print $2}')               # Ex: Select_scan=0
-    Select_full_join=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_full_join';" | awk '{print $2}')     # Ex: Select_full_join=0
-    JoinNoIndexValue=$(( $(( Select_range_check + Select_scan + Select_full_join)) / DaemonUptime ))
-    if [ $JoinNoIndexValue -lt 1 ]; then
-        SQLStatusStr+="                <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td><i>Value is good (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
-    else
-        SQLStatusStr+="                <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td style=\"color: red\"><i>Value is BAD (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
-    fi
+    SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/">Server Status Variables</a>.</i></p>'
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
 }
 
@@ -899,7 +775,7 @@ assemble_web_page() {
             echo "$SQLVariableStr" >> "$EmailTempFile"
             echo "$SQLStatusStr" >> "$EmailTempFile"
             echo '            <tr><th colspan="2">Performance</th></tr>' >> "$EmailTempFile"
-		    echo '            <tr><td colspan="2">Please see <a href="https://github.com/major/MySQLTuner-perl">https://github.com/major/MySQLTuner-perl</a> for performance tips for your installation!</td></tr>' >> "$EmailTempFile"
+		    echo '            <tr><td colspan="2" align="center">Please see <a href="https://github.com/major/MySQLTuner-perl" '$LinkReferer'>https://github.com/major/MySQLTuner-perl</a> for performance tips for your installation!</td></tr>' >> "$EmailTempFile"
         else
             echo '    <h1 align="center" style="color: red">D E A D &nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> "$EmailTempFile"
             echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
@@ -911,7 +787,7 @@ assemble_web_page() {
         echo "      </tbody>" >> "$EmailTempFile"
         echo "    </table>" >> "$EmailTempFile"
         echo "  </section>" >> "$EmailTempFile"
-        echo '  <p align="center"><em>Report generated by &#8220;sql-info&#8221; (<a href="https://github.com/Peter-Moller/sql-info" target="_blank" rel="noopener noreferrer">GitHub</a> <span class="glyphicon">&#xe164;</span>)</em></p>' >> "$EmailTempFile"
+        echo '  <p align="center"><em>Report generated by &#8220;sql-info&#8221; (<a href="https://github.com/Peter-Moller/sql-info" '$LinkReferer'>GitHub</a> <span class="glyphicon">&#xe164;</span>)</em></p>' >> "$EmailTempFile"
         echo '  <p align="center"><em>Department of Computer Science, LTH/LU</em></p>' >> "$EmailTempFile"
         echo '  <p align="center"><em>Version: '$Version'</em></p>' >> "$EmailTempFile"
         echo "</div>" >> "$EmailTempFile"
