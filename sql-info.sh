@@ -654,28 +654,29 @@ get_storage_engines() {
 get_sql_variables() {
     #InterestingVariables="^binlog_expire_logs_seconds\b|^binlog_file_cache_size\b|^collation_connection\b|^collation_database\b|^collation_server\b|^datadir\b|^default_storage_engine\b|^general_log_file\b|^have_ssl\b|^hostname\b|^log_slow_query\b|^log_slow_query_file\b|^log_slow_query_time\b|^performance_schema\b|^pid_file\b|^plugin_dir\b|^port\b|^socket\b|^tls_version\b|^version\b|^version_ssl_library\b"
     SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/">Server System Variables</a>.</i></p>'
-    InterestingVariables="binlog_expire_logs_seconds    The binary log expiration period in seconds
-binlog_file_cache_size  Size of in-memory cache that is allocated when reading binary log and relay log files. <a href=\"https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_file_cache_size\">Read about it</a>
-collation_connection    
-collation_database  The collation used by the default database
-collation_server    The server's default collation
-datadir The path to the MySQL server data directory
-default_storage_engine  The default storage engine for tables
-general_log_file    The name of the general query log file
-have_ssl    YES if mysqld supports SSL connections. DISABLED if server is compiled with SSL support, but not started with  appropriate connection-encryption options
-hostname    The server sets this variable to the server host name at startup
-innodb_file_per_table  If set to ON, then new InnoDB tables are created with their own InnoDB file-per-table tablespaces. If set to OFF, then new tables are created in the InnoDB system tablespace instead. Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default.
-log_slow_query  <a href=\"https://mariadb.com/kb/en/server-system-variables/#log_slow_query\">Read about it</a>
-log_slow_query_file Name of the slow query log file.
-log_slow_query_time If a query takes longer than this many seconds to execute (microseconds can be specified too), the query is logged to the slow query log.<br>Should be 1-5 seconds (if enabled)
-performance_schema  <a href=\"https://mariadb.com/kb/en/performance-schema-system-variables/#performance_schema\">Read about performance_schema</a>
-pid_file    Full path of the process ID file
-plugin_dir  Path to the plugin directory
-port    Port to listen for TCP/IP connections. If set to 0, will default to, in order of preference, my.cnf, the MYSQL_TCP_PORT environment variable, /etc/services, built-in default (3306)
-socket  On Unix platforms, this variable is the name of the socket file that is used for local client connections. The default is <pre>/tmp/mysql.sock</pre>
-tls_version Which protocols the server permits for encrypted connections
-version The version number for the server
-version_ssl_library The version of the TLS library that is being used"
+    InterestingVariables="binlog_expire_logs_seconds;The binary log expiration period in seconds;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_expire_logs_seconds
+binlog_file_cache_size;Size of in-memory cache that is allocated when reading binary log and relay log files;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_file_cache_size
+collation_connection;Collation used for the connection character set;https://mariadb.com/kb/en/server-system-variables/#collation_connection
+collation_database;The collation used by the default database;https://mariadb.com/kb/en/server-system-variables/#collation_database
+collation_server;The server's default collation;https://mariadb.com/kb/en/server-system-variables/#collation_server
+datadir;The path to the MySQL server data directory;https://mariadb.com/kb/en/server-system-variables/#datadir
+default_storage_engine;The default storage engine for tables;https://mariadb.com/kb/en/server-system-variables/#default_storage_engine
+general_log_file;The name of the general query log file;https://mariadb.com/kb/en/server-system-variables/#general_log_file
+have_ssl;YES if mysqld supports SSL connections. DISABLED if server is compiled with SSL support, but not started with appropriate connection-encryption options;https://mariadb.com/kb/en/ssltls-system-variables/#have_ssl
+hostname;The server sets this variable to the server host name at startup;https://mariadb.com/kb/en/server-system-variables/#hostname
+innodb_file_per_table;If set to ON, then new InnoDB tables are created with their own InnoDB file-per-table tablespaces. If set to OFF, then new tables are created in the InnoDB system tablespace instead. Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default;https://mariadb.com/kb/en/innodb-system-variables/#innodb_file_per_table
+join_buffer_size;Minimum size in bytes of the buffer used for queries that cannot use an index, and instead perform a full table scan;https://mariadb.com/kb/en/server-system-variables/#join_buffer_size
+log_slow_query;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/server-system-variables/#log_slow_query
+log_slow_query_file;Name of the slow query log file;https://mariadb.com/kb/en/server-system-variables/#log_slow_query_file
+log_slow_query_time;If a query takes longer than this many seconds to execute (microseconds can be specified too), the query is logged to the slow query log.<br>Should be 1-5 seconds (if enabled);https://mariadb.com/kb/en/server-system-variables/#log_slow_query_time
+performance_schema;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/performance-schema-system-variables/#performance_schema
+pid_file;Full path of the process ID file;https://mariadb.com/kb/en/server-system-variables/#pid_file
+plugin_dir;Path to the plugin directory;https://mariadb.com/kb/en/server-system-variables/#plugin_dir
+port;Port to listen for TCP/IP connections. If set to 0, will default to, in order of preference, my.cnf, the MYSQL_TCP_PORT environment variable, /etc/services, built-in default (3306);https://mariadb.com/kb/en/server-system-variables/#port
+socket;On Unix platforms, this variable is the name of the socket file that is used for local client connections. The default is <pre>/tmp/mysql.sock</pre>;https://mariadb.com/kb/en/server-system-variables/#socket
+tls_version;Which protocols the server permits for encrypted connections;https://mariadb.com/kb/en/ssltls-system-variables/#tls_version
+version;The version number for the server;https://mariadb.com/kb/en/server-system-variables/#version
+version_ssl_library;The version of the TLS library that is being used;https://mariadb.com/kb/en/ssltls-system-variables/#version_ssl_library"
 
     #SQLVariables="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES;" | grep -E "$InterestingVariables")"
     # Ex: SQLVariables='binlog_expire_logs_seconds  864000
@@ -709,14 +710,14 @@ version_ssl_library The version of the TLS library that is being used"
     SQLVariableStr="        <tr><th align=\"right\" colspan=\"2\">SQL Variables</th></tr>
         <tr><td colspan=\"2\">
             <table>
-                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td></tr>$NL"
-    while read VAR EXPLANATION
+                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td><td><b>Read more</b></td></tr>$NL"
+    while IFS=";" read VAR EXPLANATION READMORE
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
-            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\">&#128214;</a></td></tr>$NL"
         else
-            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\">&#128214;</a></td></tr>$NL"
         fi
     done <<< "$InterestingVariables"
     SQLVariableStr+="        </table>$SQLVariablesReadMoreStr</td></tr>$NL"
