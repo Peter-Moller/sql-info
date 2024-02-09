@@ -348,6 +348,7 @@ do_mariadb_check() {
 
 get_database_overview() {
     DatabasesToHide="information_schema|performance_schema|mysql"
+    InconsistentSizeWarningString=""
     #DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME),FORMAT(SUM(TABLE_ROWS),0),FORMAT(SUM(DATA_LENGTH),0),FORMAT(SUM(INDEX_LENGTH),0),DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
     DatabaseOverviewSQL="SELECT TABLE_SCHEMA,COUNT(TABLE_NAME) AS Num_tables, FORMAT(SUM(TABLE_ROWS),0) AS sum_rows, FORMAT(SUM(DATA_LENGTH),0) AS sum_data, FORMAT(SUM(INDEX_LENGTH),0) AS sum_index, DATA_FREE,TABLE_COLLATION,CREATE_TIME,UPDATE_TIME,ENGINE FROM information_schema.tables GROUP BY TABLE_SCHEMA ORDER BY TABLE_SCHEMA ASC;"
     DatabaseOverview="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "$DatabaseOverviewSQL" | tr -d '\r')"
@@ -380,7 +381,11 @@ get_database_overview() {
     while read DB NumTables SumRows SumDataLength SumIndexLength DataFree Collation CreateTime UpdateTime Engine
     do
         DatabaseDiskVolume="$(du -skh $DB_ROOT/$DB 2>/dev/null | awk '{print $1}' | sed 's/K/ KiB/;s/M/ MiB/;s/G/ GiB/')"                            # Ex: DatabaseDiskVolume='48 GiB'
-        #DataLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"             # Ex: DataLength='34.1 GiB'
+        DataLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"             # Ex: DataLength='34.1 GiB'
+        # Determine if the unit differ and if so, set flag to display infromation about this
+        if [ ! "$(echo "$DatabaseDiskVolume" | awk '{print $NF}')" = "$(echo "$DataLength" | awk '{print $NF}')" ]; then
+            InconsistentSizeWarningString="<br><i><b>NOTE:</b> the size of &#8220;&sum; table data [B]&#8221; (according to 'information_schema') and &#8220;Data on disk&#8221; <b>differs</b>! That is due to how the tables were created.</i><br>"
+        fi
         #if [ -z "$DataLength" ]; then
         #    DataLength="$(numfmt --to=iec-i --suffix=B --format="%9f" $SumDataLength 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"
         #fi
@@ -390,6 +395,7 @@ get_database_overview() {
         #fi
         DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
+    if $InconsistentSizeWarning; then
     DatabaseTblString+="        </table></td></tr>$NL"
 
     # Get data for the 5 largest tables
@@ -433,7 +439,7 @@ get_database_overview() {
         #fi
         DatabaseTblString+="            <tr><td><code>$TableSchema</code></td><td><code>$TableName</code></td><td align=\"right\">$SumRows</td><td align=\"right\">$SumSize</td><td align=\"right\">$TableDiskVolume</td><td align=\"right\">$(printf "%'.1f" $Fragmentation)%</td><td>$Collation</td><td>${Created/_/ }</td><td>${Updated/_/ }</td><td>$StorageEngine</td></tr>$NL"
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
-    DatabaseTblString+="        </table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
+    DatabaseTblString+="        </table>$InconsistentSizeWarningString<br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
         <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>"
 
 
@@ -659,6 +665,7 @@ default_storage_engine  The default storage engine for tables
 general_log_file    The name of the general query log file
 have_ssl    YES if mysqld supports SSL connections. DISABLED if server is compiled with SSL support, but not started with  appropriate connection-encryption options
 hostname    The server sets this variable to the server host name at startup
+innodb_file_per_table  If set to ON, then new InnoDB tables are created with their own InnoDB file-per-table tablespaces. If set to OFF, then new tables are created in the InnoDB system tablespace instead. Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default.
 log_slow_query  <a href=\"https://mariadb.com/kb/en/server-system-variables/#log_slow_query\">Read about it</a>
 log_slow_query_file Name of the slow query log file.
 log_slow_query_time If a query takes longer than this many seconds to execute (microseconds can be specified too), the query is logged to the slow query log.<br>Should be 1-5 seconds (if enabled)
@@ -802,16 +809,16 @@ Uptime  The number of seconds that the server has been up"
                                    EXPLANATION="$EXPLANATION.<br>$EVALUATION";;
             "Uptime" )             EXPLANATION="$EXPLANATION ($(time_convert ${VALUE//,/} | sed 's/ [0-9]* sec$//')).";;
         esac
-        SQLStatusStr+="            <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
+        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td></tr>$NL"
     done <<< "$InterestingStatus"
     Select_range_check=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_range_check';" | awk '{print $2}') # Ex: Select_range_check=0
     Select_scan=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_scan';" | awk '{print $2}')               # Ex: Select_scan=0
     Select_full_join=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE 'Select_full_join';" | awk '{print $2}')     # Ex: Select_full_join=0
     JoinNoIndexValue=$(( $(( Select_range_check + Select_scan + Select_full_join)) / DaemonUptime ))
     if [ $JoinNoIndexValue -lt 1 ]; then
-        SQLStatusStr+="            <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td><i>Value is good (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
+        SQLStatusStr+="                <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td><i>Value is good (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
     else
-        SQLStatusStr+="            <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td style=\"color: red\"><i>Value is BAD (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
+        SQLStatusStr+="                <tr><td>Join without index</td><td align=\"right\"><code>$JoinNoIndexValue</code></td><td style=\"color: red\"><i>Value is BAD (based on total uptime)</i><br><i>(<code>Select_range_check + Select_scan + Select_full_join</code>) should be &lt; <code>1</code> per hour</i></td></tr>$NL"
     fi
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
 }
@@ -828,16 +835,16 @@ Uptime  The number of seconds that the server has been up"
 #                                                                                                   |___/                                                          
 get_last_known_good_data() {
     LastRunFileDatetime="$(stat --format %x "$LastRunFile" | sed 's/\.[0-9]*//')"                  # Ex: LastRunFileDatetime='2024-02-07 08:55:05 +0100'
-    echo "        </tbody>" >> $EmailTempFile
-    echo "    </table>" >> $EmailTempFile
-    echo "    <p>&nbsp;</p>" >> $EmailTempFile
-    echo "    <p>&nbsp;</p>" >> $EmailTempFile
-    echo "    <h1 align=\"center\" style=\"color: red\">Last known good data</h1>" >> $EmailTempFile
-    echo "    <p align=\"center\" style=\"color: red\">Date: $LastRunFileDatetime</p>" >> $EmailTempFile
-    echo "    <p>&nbsp;</p>" >> $EmailTempFile
-    echo "    <table id=\"jobe\">" >> $EmailTempFile
-    echo "        <tbody>" >> $EmailTempFile
-    cat "$LastRunFile" >> $EmailTempFile
+    echo "        </tbody>" >> "$EmailTempFile"
+    echo "    </table>" >> "$EmailTempFile"
+    echo "    <p>&nbsp;</p>" >> "$EmailTempFile"
+    echo "    <p>&nbsp;</p>" >> "$EmailTempFile"
+    echo "    <h1 align=\"center\" style=\"color: red\">Last known good data</h1>" >> "$EmailTempFile"
+    echo "    <p align=\"center\" style=\"color: red\">Date: $LastRunFileDatetime</p>" >> "$EmailTempFile"
+    echo "    <p>&nbsp;</p>" >> "$EmailTempFile"
+    echo "    <table id=\"jobe\">" >> "$EmailTempFile"
+    echo "        <tbody>" >> "$EmailTempFile"
+    cat "$LastRunFile" >> "$EmailTempFile"
 }
 
 
@@ -852,67 +859,69 @@ get_last_known_good_data() {
 #                                                                                            |_|              |___/        
 assemble_web_page() {
     # Get the head of the custom report, replace SERVER and DATE
-    curl --silent $ReportHead | sed "s/SERVER/$ServerName/;s/DATE/$(date +%F)/;$CSS_colorfix;s/Backup/SQL/;s/1200/1250/" >> $EmailTempFile
+    curl --silent $ReportHead | sed "s/SERVER/$ServerName/;s/DATE/$(date +%F)/;$CSS_colorfix;s/Backup/SQL/;s/1200/1250/" >> "$EmailTempFile"
     # Only continue if it worked
-    if grep "SQL report for" $EmailTempFile &>/dev/null ; then
-        echo "<body>" >> $EmailTempFile
-        echo '<div class="main_page">' >> $EmailTempFile
-        echo '  <div class="flexbox-container">' >> $EmailTempFile
-        echo '    <div id="box-header">' >> $EmailTempFile
-        echo "      <h3>SQL report for</h3>" >> $EmailTempFile
-        echo "      <h1>$ServerName</h1>" >> $EmailTempFile
-        echo "      <h4>$(date "+%Y-%m-%d %T %Z")</h4>" >> $EmailTempFile
-        echo "    </div>" >> $EmailTempFile
-        echo "  </div>" >> $EmailTempFile
-        echo "  <section>" >> $EmailTempFile
-        echo "    <p>&nbsp;</p>" >> $EmailTempFile
-        echo "    <p align=\"left\"> Report generated by script: <code>${ScriptFullName}</code><br>" >> $EmailTempFile
-        echo "      Script launched $ScriptLaunchText by: <code>${ScriptLauncher:---no launcher detected--}</code> </p>" >> $EmailTempFile
-        echo '    <p align="left">&nbsp;</p>' >> $EmailTempFile
-        echo '    <p align="left">&nbsp;</p>' >> $EmailTempFile
+    if grep "SQL report for" "$EmailTempFile" &>/dev/null ; then
+        echo "<body>" >> "$EmailTempFile"
+        echo '<div class="main_page">' >> "$EmailTempFile"
+        echo '  <div class="flexbox-container">' >> "$EmailTempFile"
+        echo '    <div id="box-header">' >> "$EmailTempFile"
+        echo "      <h3>SQL report for</h3>" >> "$EmailTempFile"
+        echo "      <h1>$ServerName</h1>" >> "$EmailTempFile"
+        echo "      <h4>$(date "+%Y-%m-%d %T %Z")</h4>" >> "$EmailTempFile"
+        echo "    </div>" >> "$EmailTempFile"
+        echo "  </div>" >> "$EmailTempFile"
+        echo "  <section>" >> "$EmailTempFile"
+        echo "    <p>&nbsp;</p>" >> "$EmailTempFile"
+        echo "    <p align=\"left\"> Report generated by script: <code>${ScriptFullName}</code><br>" >> "$EmailTempFile"
+        echo "      Script launched $ScriptLaunchText by: <code>${ScriptLauncher:---no launcher detected--}</code> </p>" >> "$EmailTempFile"
+        echo '    <p align="left">&nbsp;</p>' >> "$EmailTempFile"
+        echo '    <p align="left">&nbsp;</p>' >> "$EmailTempFile"
         if [ -n "$RunningDaemonLine" ]; then
-            echo '    <h1 align="center">R u n n i n g&nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> $EmailTempFile
-            echo '    <p>&nbsp;</p>' >> $EmailTempFile
-            echo '    <table id="jobe">' >> $EmailTempFile
-            echo "      <tbody>" >> $EmailTempFile
-            echo "$DaemonInfoStr" >> $EmailTempFile
-            echo "$DBCheckString" >> $EmailTempFile
-            echo "$DatabaseTblString" >> $EmailTempFile
-            echo '      </tbody>' >> $EmailTempFile
-            echo '    </table>' >> $EmailTempFile
-            echo '    <p>&nbsp;</p>' >> $EmailTempFile
-            echo '    <p>&nbsp;</p>' >> $EmailTempFile
-            echo '    <h1 align="center">D a t a b a s e&nbsp;&nbsp;&nbsp;&nbsp;s e t t i n g s</h1>' >> $EmailTempFile
-            echo '    <p>&nbsp;</p>' >> $EmailTempFile
-            echo '    <table id="jobe">' >> $EmailTempFile
-            echo '      <tbody>' >> $EmailTempFile
-            echo "$MainReplicaString" >> $EmailTempFile
-            echo "$SQLUsersTablePart" >> $EmailTempFile
-            echo "$StorageEngineStr" >> $EmailTempFile
-            echo "$SQLVariableStr" >> $EmailTempFile
-            echo "$SQLStatusStr" >> $EmailTempFile
+            echo '    <h1 align="center">R u n n i n g&nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> "$EmailTempFile"
+            echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
+            echo '    <table id="jobe">' >> "$EmailTempFile"
+            echo "      <tbody>" >> "$EmailTempFile"
+            echo "$DaemonInfoStr" >> "$EmailTempFile"
+            echo "$DBCheckString" >> "$EmailTempFile"
+            echo "$DatabaseTblString" >> "$EmailTempFile"
+            echo '      </tbody>' >> "$EmailTempFile"
+            echo '    </table>' >> "$EmailTempFile"
+            echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
+            echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
+            echo '    <h1 align="center">D a t a b a s e&nbsp;&nbsp;&nbsp;&nbsp;s e t t i n g s</h1>' >> "$EmailTempFile"
+            echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
+            echo '    <table id="jobe">' >> "$EmailTempFile"
+            echo '      <tbody>' >> "$EmailTempFile"
+            echo "$MainReplicaString" >> "$EmailTempFile"
+            echo "$SQLUsersTablePart" >> "$EmailTempFile"
+            echo "$StorageEngineStr" >> "$EmailTempFile"
+            echo "$SQLVariableStr" >> "$EmailTempFile"
+            echo "$SQLStatusStr" >> "$EmailTempFile"
+            echo '            <tr><th colspan="2">Performance</th></tr>' >> "$EmailTempFile"
+		    echo '            <tr><td colspan="2">Please see <a href="https://github.com/major/MySQLTuner-perl">https://github.com/major/MySQLTuner-perl</a> for performance tips for your installation!</td></tr>' >> "$EmailTempFile"
         else
-            echo '    <h1 align="center" style="color: red">D E A D &nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> $EmailTempFile
-            echo '    <p>&nbsp;</p>' >> $EmailTempFile
-            echo '    <table id="jobe">' >> $EmailTempFile
-            echo "      <tbody>" >> $EmailTempFile
-            echo "$DaemonInfoStr" >> $EmailTempFile
+            echo '    <h1 align="center" style="color: red">D E A D &nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> "$EmailTempFile"
+            echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
+            echo '    <table id="jobe">' >> "$EmailTempFile"
+            echo "      <tbody>" >> "$EmailTempFile"
+            echo "$DaemonInfoStr" >> "$EmailTempFile"
             get_last_known_good_data
         fi
-        echo "      </tbody>" >> $EmailTempFile
-        echo "    </table>" >> $EmailTempFile
-        echo "  </section>" >> $EmailTempFile
-        echo '  <p align="center"><em>Report generated by &#8220;sql-info&#8221; (<a href="https://github.com/Peter-Moller/sql-info" target="_blank" rel="noopener noreferrer">GitHub</a> <span class="glyphicon">&#xe164;</span>)</em></p>' >> $EmailTempFile
-        echo '  <p align="center"><em>Department of Computer Science, LTH/LU</em></p>' >> $EmailTempFile
-        echo '  <p align="center"><em>Version: '$Version'</em></p>' >> $EmailTempFile
-        echo "</div>" >> $EmailTempFile
-        echo "</body>" >> $EmailTempFile
-        echo "</html>" >> $EmailTempFile
+        echo "      </tbody>" >> "$EmailTempFile"
+        echo "    </table>" >> "$EmailTempFile"
+        echo "  </section>" >> "$EmailTempFile"
+        echo '  <p align="center"><em>Report generated by &#8220;sql-info&#8221; (<a href="https://github.com/Peter-Moller/sql-info" target="_blank" rel="noopener noreferrer">GitHub</a> <span class="glyphicon">&#xe164;</span>)</em></p>' >> "$EmailTempFile"
+        echo '  <p align="center"><em>Department of Computer Science, LTH/LU</em></p>' >> "$EmailTempFile"
+        echo '  <p align="center"><em>Version: '$Version'</em></p>' >> "$EmailTempFile"
+        echo "</div>" >> "$EmailTempFile"
+        echo "</body>" >> "$EmailTempFile"
+        echo "</html>" >> "$EmailTempFile"
     else
-        echo "<body>" >> $EmailTempFile
+        echo "<body>" >> "$EmailTempFile"
         echo "<h1>Could not get $ReportHead!!</h1>"
-        echo "</body>" >> $EmailTempFile
-        echo "</html>" >> $EmailTempFile
+        echo "</body>" >> "$EmailTempFile"
+        echo "</html>" >> "$EmailTempFile"
     fi
 
 }
@@ -943,16 +952,16 @@ email_html_create_send() {
     fi
 
     # Set the headers in order to use sendmail
-    echo "To: $Recipient" >> $EmailTempFile
-    echo "Subject: $Status" >> $EmailTempFile
-    echo "Content-Type: text/html" >> $EmailTempFile
-    echo "" >> $EmailTempFile
+    echo "To: $Recipient" >> "$EmailTempFile"
+    echo "Subject: $Status" >> "$EmailTempFile"
+    echo "Content-Type: text/html" >> "$EmailTempFile"
+    echo "" >> "$EmailTempFile"
 
     # Create the html content
     assemble_web_page
 
     if [ -n "$Recipient" ]; then
-        cat $EmailTempFile | /sbin/sendmail -t
+        cat "$EmailTempFile" | /sbin/sendmail -t
         #echo "$MailReport" | mail -s "${ServerName}: $Status" "$Recipient"
     fi
 
@@ -1015,4 +1024,4 @@ email_html_create_send
 
 copy_result
 
-rm $EmailTempFile
+rm "$EmailTempFile"
