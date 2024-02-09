@@ -53,7 +53,7 @@ NL=$'\n'
 SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
-Version="2024-02-08.2"
+Version="2024-02-09.1"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -395,7 +395,6 @@ get_database_overview() {
         #fi
         DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
     done <<< "$(echo "$DatabaseOverview" | sed 's/ /_/g')"
-    if $InconsistentSizeWarning; then
     DatabaseTblString+="        </table></td></tr>$NL"
 
     # Get data for the 5 largest tables
