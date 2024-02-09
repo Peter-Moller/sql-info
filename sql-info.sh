@@ -515,7 +515,7 @@ get_sql_users() {
     # | root             | localhost |
     # +------------------+-----------+
     
-    UserList="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT user,host FROM mysql.user" | sed '1d' | tr -d '\r')"
+    UserList="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT user,host FROM mysql.user" | tr -d '\r')"
     # Ex: UserList='replication_user    %
     #               root    %
     #               mariadb.sys localhost
