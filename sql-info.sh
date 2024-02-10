@@ -54,7 +54,7 @@ SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
 LinkReferer='target="_blank" rel="noopener noreferrer"'
-Version="2024-02-10.1"
+Version="2024-02-10.2"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -691,9 +691,14 @@ Uptime%The number of seconds that the server has been up%https://mariadb.com/kb/
     while IFS="%" read VAR EXPLANATION READMORE
     do
         EVALUATION=""
-        #VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE '$VAR';" | awk '{print $2}')"
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
-        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
+        if [ "$VAR" = "Uptime" ]; then
+            UptimeH="$(time_convert "${VALUE//,/}" | sed 's/ [0-9]* sec//')"                                                # Ex: UptimeH='2 days 6 hours 59 min'
+            ExplAddendum="<br>($VALUE seconds = $UptimeH)"
+        else
+            ExplAddendum=""
+        fi
+        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION $ExplAddendum</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
     done <<< "$InterestingStatus"
     SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/" '$LinkReferer'>Server Status Variables</a> <span class="glyphicon">&#xe164;</span>.</i></p>'
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
