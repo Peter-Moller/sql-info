@@ -54,7 +54,7 @@ SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
 LinkReferer='target="_blank" rel="noopener noreferrer"'
-Version="2024-02-09.2"
+Version="2024-02-10.1"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -375,7 +375,7 @@ get_database_overview() {
         DataLength="$(numfmt --to=iec-i --suffix=B --format="%9.1f" ${SumDataLength//,/} 2>/dev/null | sed 's/K/ K/;s/M/ M/;s/G/ G/;s/^ *//')"             # Ex: DataLength='34.1 GiB'
         # Determine if the unit differ and if so, set flag to display infromation about this
         if [ ! "$(echo "$DatabaseDiskVolume" | awk '{print $NF}')" = "$(echo "$DataLength" | awk '{print $NF}')" ]; then
-            InconsistentSizeWarningString="<br><i><b>*</b> the size of &#8220;&sum; table data [B]&#8221; (according to 'information_schema') and &#8220;Data on disk&#8221; <b>differs</b>! That is due to how the tables were created.</i><br>"
+            InconsistentSizeWarningString="<br><i><code><b>*</b></code> the size of &#8220;&sum; table data [B]&#8221; (according to 'information_schema') and &#8220;Data on disk&#8221; differs! That is due to how the tables were created.</i><br>"
             DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td><td><code> *</code></td></tr>$NL"
         else
             DatabaseTblString+="            <tr><td><code>$DB</code></td><td align=\"right\">$NumTables</td><td align=\"right\">$SumRows</td><td align=\"right\">$SumDataLength</td><td align=\"right\">$SumIndexLength</td><td align=\"right\">${DatabaseDiskVolume:-0 KiB}</td><td>$Collation</td><td>${CreateTime/_/ }</td><td>$Engine</td></tr>$NL"
@@ -589,7 +589,7 @@ get_storage_engines() {
         StorageEngineStr+="                <tr><td$COLOR>$ENGINE</td><td$COLOR>$SUPPORT</td><td align=\"right\"$COLOR>$NumTables</td><td align=\"right\"$COLOR>$NumRows</td><td align=\"right\"$COLOR>$DATA</td><td align=\"right\"$COLOR>$IDX</td><td align=\"right\"$COLOR>$TOTAL_SIZE</td></tr>$NL"
     done <<< "$StorageEngines"
     StorageEngineStr+="            </table><br>
-        <p><i>Read an overview of <a href=\"https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html\" $LinkReferer>storage engines</a></i></p></td></tr>"
+        <p><i>Read an overview of <a href=\"https://dev.mysql.com/doc/refman/8.0/en/pluggable-storage-overview.html\" $LinkReferer>storage engines</a> <span class="glyphicon">&#xe164;</span></i></p></td></tr>"
 }
 
 
@@ -610,9 +610,9 @@ collation_server;The server's default collation;https://mariadb.com/kb/en/server
 datadir;The path to the MySQL server data directory;https://mariadb.com/kb/en/server-system-variables/#datadir
 default_storage_engine;The default storage engine for tables;https://mariadb.com/kb/en/server-system-variables/#default_storage_engine
 general_log_file;The name of the general query log file;https://mariadb.com/kb/en/server-system-variables/#general_log_file
-have_ssl;YES if mysqld supports SSL connections. DISABLED if server is compiled with SSL support, but not started with appropriate connection-encryption options;https://mariadb.com/kb/en/ssltls-system-variables/#have_ssl
+have_ssl;YES if <code>mysqld</code> supports SSL connections. DISABLED if server is compiled with SSL support, but not started with appropriate connection-encryption options;https://mariadb.com/kb/en/ssltls-system-variables/#have_ssl
 hostname;The server sets this variable to the server host name at startup;https://mariadb.com/kb/en/server-system-variables/#hostname
-innodb_file_per_table;If set to ON, then new InnoDB tables are created with their own InnoDB file-per-table tablespaces. If set to OFF, then new tables are created in the InnoDB system tablespace instead. Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default;https://mariadb.com/kb/en/innodb-system-variables/#innodb_file_per_table
+innodb_file_per_table;ON = new InnoDB tables are created with their own InnoDB file-per-table tablespaces<br>OFF = new tables are created in the InnoDB system tablespace instead<br>Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default;https://mariadb.com/kb/en/innodb-system-variables/#innodb_file_per_table
 join_buffer_size;Minimum size in bytes of the buffer used for queries that cannot use an index, and instead perform a full table scan;https://mariadb.com/kb/en/server-system-variables/#join_buffer_size
 log_slow_query;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/server-system-variables/#log_slow_query
 log_slow_query_file;Name of the slow query log file;https://mariadb.com/kb/en/server-system-variables/#log_slow_query_file
@@ -620,8 +620,8 @@ log_slow_query_time;If a query takes longer than this many seconds to execute (m
 performance_schema;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/performance-schema-system-variables/#performance_schema
 pid_file;Full path of the process ID file;https://mariadb.com/kb/en/server-system-variables/#pid_file
 plugin_dir;Path to the plugin directory;https://mariadb.com/kb/en/server-system-variables/#plugin_dir
-port;Port to listen for TCP/IP connections. If set to 0, will default to, in order of preference, my.cnf, the MYSQL_TCP_PORT environment variable, /etc/services, built-in default (3306);https://mariadb.com/kb/en/server-system-variables/#port
-socket;On Unix platforms, this variable is the name of the socket file that is used for local client connections. The default is <pre>/tmp/mysql.sock</pre>;https://mariadb.com/kb/en/server-system-variables/#socket
+port;Port to listen for TCP/IP connections (default <code>3306</code>);https://mariadb.com/kb/en/server-system-variables/#port
+socket;On Unix platforms, this variable is the name of the socket file that is used for local client connections. The default is <code>/tmp/mysql.sock</code>;https://mariadb.com/kb/en/server-system-variables/#socket
 tls_version;Which protocols the server permits for encrypted connections;https://mariadb.com/kb/en/ssltls-system-variables/#tls_version
 version;The version number for the server;https://mariadb.com/kb/en/server-system-variables/#version
 version_ssl_library;The version of the TLS library that is being used;https://mariadb.com/kb/en/ssltls-system-variables/#version_ssl_library"
@@ -634,12 +634,12 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
-            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
         else
-            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a></td></tr>$NL"
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
         fi
     done <<< "$InterestingVariables"
-    SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/" '$LinkReferer'>Server System Variables</a>.</i></p>'
+    SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/" '$LinkReferer'>Server System Variables</a> <span class="glyphicon">&#xe164;</span>.</i></p>'
     SQLVariableStr+="        </table>$SQLVariablesReadMoreStr</td></tr>$NL"
 
 #    # Print it:
@@ -662,20 +662,20 @@ get_sql_status() {
 Aborted_connects%The number of failed attempts to connect to the MySQL server%https://mariadb.com/kb/en/server-status-variables/#aborted_connects
 Compression%Whether the client connection uses compression in the client/server protocol.%https://mariadb.com/kb/en/server-status-variables/#compression
 Connections%The number of connection attempts (successful or not) to the MySQL server.%https://mariadb.com/kb/en/server-status-variables/#connections
-Connection_errors_accept%The number of errors that occurred during calls to accept() on the listening port%https://mariadb.com/kb/en/server-status-variables/#connection_errors_accept
+Connection_errors_accept%The number of errors that occurred during calls to <code>accept()</code> on the listening port%https://mariadb.com/kb/en/server-status-variables/#connection_errors_accept
 Connection_errors_internal%Number of refused connections due to internal server errors, for example out of memory errors, or failed thread starts%https://mariadb.com/kb/en/server-status-variables/#connection_errors_internal
 Handler_read_first%Number of requests to read the first row from an index<br>&#9888;&nbsp;&nbsp;A high value indicates many full index scans%https://mariadb.com/kb/en/server-status-variables/#handler_read_first
 Handler_read_rnd%Number of requests to read a row based on its position<br>&#9888;&nbsp;&nbsp;If this value is high, you may not be using joins that don't use indexes properly, or be doing many full table scans%https://mariadb.com/kb/en/server-status-variables/#handler_read_rnd
-Max_statement_time_exceeded%Number of queries that exceeded the execution time specified by max_statement_time.%https://mariadb.com/kb/en/server-status-variables/#max_statement_time_exceeded
+Max_statement_time_exceeded%Number of queries that exceeded the execution time specified by <code>max_statement_time</code>.%https://mariadb.com/kb/en/server-status-variables/#max_statement_time_exceeded
 Max_used_connections%The maximum number of connections that have been in use simultaneously since the server started%https://mariadb.com/kb/en/server-status-variables/#max_used_connections
 Open_files%Number of files that are open, including regular files opened by the server but not sockets or pipes%https://mariadb.com/kb/en/server-status-variables/#open_files
 Open_tables%The number of tables that are open%https://mariadb.com/kb/en/server-status-variables/#open_tables
 Opened_tables%Number of tables the server has opened.%https://mariadb.com/kb/en/server-status-variables/#opened_tables
 Queries%The number of statements executed by the server%https://mariadb.com/kb/en/server-status-variables/#queries
 Rpl_semi_sync_slave_status%Shows whether semisynchronous replication is currently operational on the replica%https://mariadb.com/kb/en/semisynchronous-replication-plugin-status-variables/#rpl_semi_sync_slave_status
-Select_full_join%Number of joins which did not use an index<br>&#9888;&nbsp;&nbsp;If not zero, you may need to check table indexes%https://mariadb.com/kb/en/server-status-variables/#select_full_join
+Select_full_join%Number of joins which did not use an index<br>&#9888;&nbsp;&nbsp;If not <code>0</code>, you may need to check table indexes%https://mariadb.com/kb/en/server-status-variables/#select_full_join
 Select_range%Number of joins which used a range on the first table.%https://mariadb.com/kb/en/server-status-variables/#select_range
-Select_range_check%Number of joins without keys that check for key usage after each row<br>&#9888;i&nbsp;&nbsp;If not zero, you may need to check table indexes%https://mariadb.com/kb/en/server-status-variables/#select_range_check
+Select_range_check%Number of joins without keys that check for key usage after each row<br>&#9888;i&nbsp;&nbsp;If not <code>0</code>, you may need to check table indexes%https://mariadb.com/kb/en/server-status-variables/#select_range_check
 Select_scan%Number of joins which used a full scan of the first table.%https://mariadb.com/kb/en/server-status-variables/#select_scan
 Sort_rows%Number of rows sorted.%https://mariadb.com/kb/en/server-status-variables/#sort_rows
 Slave_running%Whether the default connection slave is running (both I/O and SQL threads are running) or not.%https://mariadb.com/kb/en/replication-and-binary-log-status-variables/
@@ -693,9 +693,9 @@ Uptime%The number of seconds that the server has been up%https://mariadb.com/kb/
         EVALUATION=""
         #VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW STATUS LIKE '$VAR';" | awk '{print $2}')"
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
-        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a></td></tr>$NL"
+        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
     done <<< "$InterestingStatus"
-    SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/">Server Status Variables</a>.</i></p>'
+    SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/" '$LinkReferer'>Server Status Variables</a> <span class="glyphicon">&#xe164;</span>.</i></p>'
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
 }
 
@@ -774,8 +774,6 @@ assemble_web_page() {
             echo "$StorageEngineStr" >> "$EmailTempFile"
             echo "$SQLVariableStr" >> "$EmailTempFile"
             echo "$SQLStatusStr" >> "$EmailTempFile"
-            echo '            <tr><th colspan="2">Performance</th></tr>' >> "$EmailTempFile"
-		    echo '            <tr><td colspan="2" align="center">Please see <a href="https://github.com/major/MySQLTuner-perl" '$LinkReferer'>https://github.com/major/MySQLTuner-perl</a> for performance tips for your installation!</td></tr>' >> "$EmailTempFile"
         else
             echo '    <h1 align="center" style="color: red">D E A D &nbsp;&nbsp;&nbsp;&nbsp;i n s t a n c e</h1>' >> "$EmailTempFile"
             echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
@@ -786,10 +784,31 @@ assemble_web_page() {
         fi
         echo "      </tbody>" >> "$EmailTempFile"
         echo "    </table>" >> "$EmailTempFile"
+        echo '    <p align="left">&nbsp;</p>' >> "$EmailTempFile"
+        echo '    <p align="left">&nbsp;</p>' >> "$EmailTempFile"
+        echo '    <h1 align="center">M i s c.&nbsp;&nbsp;&nbsp;&nbsp;i n f o</h1>' >> "$EmailTempFile"
+        echo '    <p>&nbsp;</p>' >> "$EmailTempFile"
+        echo '    <table id="jobe">' >> "$EmailTempFile"
+        echo '      <tbody>' >> "$EmailTempFile"
+        echo '		    <tr><th colspan="2">Performance</th></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>MariaDB Internal Optimizations</td><td><a href="https://mariadb.com/kb/en/mariadb-internal-optimizations/" '$LinkReferer'>https://mariadb.com/kb/en/mariadb-internal-optimizations/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>MariaDB Memory Allocation</td><td><a href="https://mariadb.com/kb/en/mariadb-memory-allocation/" '$LinkReferer'>https://mariadb.com/kb/en/mariadb-memory-allocation/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>Optimizing Tables</td><td><a href="https://mariadb.com/kb/en/optimizing-tables/" '$LinkReferer'>https://mariadb.com/kb/en/optimizing-tables/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td><code>MySQLTuner.pl</code></td><td><a href="https://github.com/major/MySQLTuner-perl" '$LinkReferer'>https://github.com/major/MySQLTuner-perl</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>Optimization and Tuning</td><td><a href="https://mariadb.com/kb/en/optimization-and-tuning/" '$LinkReferer'>https://mariadb.com/kb/en/optimization-and-tuning/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>How to check and repair MySQL Databases</td><td><a href="https://www.globo.tech/learning-center/how-to-check-and-repair-mysql-databases/" '$LinkReferer'>https://www.globo.tech/learning-center/how-to-check-and-repair-mysql-databases/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>Ultimate Guide to MariaDB Performance Tuning</td><td><a href="https://www.cloudways.com/blog/mariadb-performance-tuning/" '$LinkReferer'>https://www.cloudways.com/blog/mariadb-performance-tuning/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>Configuring InnoDB Buffer Pool Size</td><td><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-resize.html" '$LinkReferer'>https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-resize.html</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><th colspan="2">Security</th></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>Securing MariaDB</td><td><a href="https://mariadb.com/kb/en/securing-mariadb/" '$LinkReferer'>https://mariadb.com/kb/en/securing-mariadb/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>MariaDB Security: Threats and Best Practices</td><td><a href="https://satoricyber.com/mysql-security/mariadb-security-threats-and-best-practices/" '$LinkReferer'>https://satoricyber.com/mysql-security/mariadb-security-threats-and-best-practices/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '	    </tbody>' >> "$EmailTempFile"
+        echo '	  </table>' >> "$EmailTempFile"
+        echo '' >> "$EmailTempFile"
         echo "  </section>" >> "$EmailTempFile"
         echo '  <p align="center"><em>Report generated by &#8220;sql-info&#8221; (<a href="https://github.com/Peter-Moller/sql-info" '$LinkReferer'>GitHub</a> <span class="glyphicon">&#xe164;</span>)</em></p>' >> "$EmailTempFile"
         echo '  <p align="center"><em>Department of Computer Science, LTH/LU</em></p>' >> "$EmailTempFile"
-        echo '  <p align="center"><em>Version: '$Version'</em></p>' >> "$EmailTempFile"
+        echo '  <p align="center" style="font-size: smaller"><em>Version: '$Version'</em></p>' >> "$EmailTempFile"
         echo "</div>" >> "$EmailTempFile"
         echo "</body>" >> "$EmailTempFile"
         echo "</html>" >> "$EmailTempFile"
