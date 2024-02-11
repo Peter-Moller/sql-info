@@ -54,7 +54,7 @@ SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
 LinkReferer='target="_blank" rel="noopener noreferrer"'
-Version="2024-02-10.2"
+Version="2024-02-11.1"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -265,6 +265,35 @@ get_daemon_info() {
     fi
     UptimeSince="$(uptime -s)"                                                                                    # Ex: UptimeSince='2024-01-29 04:06:33'
 
+    # Get the port info:
+    Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')      # Ex: Port=3306
+    # Get open ports:
+    # lsof -i:3306 +c15
+    # COMMAND       PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+    # docker-proxy 1629 root    4u  IPv4  38869      0t0  TCP *:mysql (LISTEN)
+    # docker-proxy 1639 root    4u  IPv6  38877      0t0  TCP *:mysql (LISTEN)
+    # ^^^1^^^       ^2^ ^^3^        ^^5^                 ^^8^ ^^9^
+    if [ -x /bin/lsof ]; then
+        OpenSQLPorts="$(/bin/lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
+    elif [ -x /sbin/lsof ]; then
+        OpenSQLPorts="$(/sbin/lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
+    fi
+    # Ex: OpenSQLPorts='docker-proxy 1629 root IPv4 TCP *:mysql (LISTEN)
+    #                   docker-proxy 1639 root IPv6 TCP *:mysql (LISTEN)'
+
+    # Create the table part:
+    OpenConnectionTblPart="        <tr><td>Network port:</td><td><code>$Port</code>:
+        <table>
+            <tr><td><b>Command</b></td><td><b>PID</b></td><td><b>User</b></td><td><b>Type</b></td><td><b>Node</b></td><td><b>Name</b></td></tr>"
+    while read -r Command PID User Type Node Name
+    do
+        OpenConnectionTblPart+="            <tr><td>$Command</td><td>$PID</td><td>$User</td><td>$Type</td><td>$Node</td><td>$Name</td></tr>$NL"
+    done <<< "$OpenSQLPorts"
+    # Ex: OpenConnectionTblPart='<tr><td>docker-proxy</td><td>1629</td><td>root</td><td>IPv4</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>
+    #                            <tr><td>docker-proxy</td><td>1639</td><td>root</td><td>IPv6</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>'
+    OpenConnectionTblPart+="        </table></td></tr>"
+
+
     # Assemble the DaemonInfoStr
     DaemonInfoStr="        <tr><th align=\"right\" colspan=\"2\">Daemon info</th></tr>$NL"
     DaemonInfoStr+="$EnvironmentStr"
@@ -285,7 +314,7 @@ get_daemon_info() {
             SystemctlStatus="$(systemctl status mariadb 2>/dev/null)"
         fi
         if [ -n "$SystemctlStatus" ]; then
-            DaemonInfoStr+="        <tr><td><code>systemctl&nbsp;</code>:</td><td><pre>$SystemctlStatus</pre></td></tr>$NL"
+            DaemonInfoStr+="        <tr><td><code>systemctl&nbsp;</code>:</td><td><pre>$SystemctlStatus</pre></td></tr>"
         fi
     fi
 }
@@ -409,34 +438,6 @@ get_database_overview() {
     done <<< "$(echo "$FiveLargestTables" | sed 's/ /_/g')"
     DatabaseTblString+="        </table><br><i>Table size = DATA_LENGTH + INDEX_LENGTH,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fragmentation = DATA_FREE / DATA_LENGTH</i><br>
         <i>NOTE: the information above comes from <code>information_schema</code> and is not entirely accurate!</i></td></tr>"
-
-
-    Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')      # Ex: Port=3306
-    # Get open ports:
-    # lsof -i:3306 +c15
-    # COMMAND       PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
-    # docker-proxy 1629 root    4u  IPv4  38869      0t0  TCP *:mysql (LISTEN)
-    # docker-proxy 1639 root    4u  IPv6  38877      0t0  TCP *:mysql (LISTEN)
-    # ^^^1^^^       ^2^ ^^3^        ^^5^                 ^^8^ ^^9^
-    if [ -x /bin/lsof ]; then
-        OpenSQLPorts="$(/bin/lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
-    elif [ -x /sbin/lsof ]; then
-        OpenSQLPorts="$(/sbin/lsof -i:$Port +c15 | sed '1d' | awk '{print $1" "$2" "$3" "$5" "$8" "$9" "$10}')"
-    fi
-    # Ex: OpenSQLPorts='docker-proxy 1629 root IPv4 TCP *:mysql (LISTEN)
-    #                   docker-proxy 1639 root IPv6 TCP *:mysql (LISTEN)'
-
-    # Create the table part:
-    OpenConnectionTblPart="        <tr><td>Network port:</td><td><code>$Port</code>:
-        <table>
-            <tr><td><b>Command</b></td><td><b>PID</b></td><td><b>User</b></td><td><b>Type</b></td><td><b>Node</b></td><td><b>Name</b></td></tr>"
-    while read -r Command PID User Type Node Name
-    do
-        OpenConnectionTblPart+="            <tr><td>$Command</td><td>$PID</td><td>$User</td><td>$Type</td><td>$Node</td><td>$Name</td></tr>$NL"
-    done <<< "$OpenSQLPorts"
-    # Ex: OpenConnectionTblPart='<tr><td>docker-proxy</td><td>1629</td><td>root</td><td>IPv4</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>
-    #                            <tr><td>docker-proxy</td><td>1639</td><td>root</td><td>IPv6</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>'
-    OpenConnectionTblPart+="        </table></td></tr>"
 
     # MASTER / SLAVE
     MasterStatus="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW MASTER STATUS;")"   # Ex: MasterStatus=  || MasterStatus='mariadb-bin.000599 542526335'
@@ -665,6 +666,7 @@ Connections%The number of connection attempts (successful or not) to the MySQL s
 Connection_errors_accept%The number of errors that occurred during calls to <code>accept()</code> on the listening port%https://mariadb.com/kb/en/server-status-variables/#connection_errors_accept
 Connection_errors_internal%Number of refused connections due to internal server errors, for example out of memory errors, or failed thread starts%https://mariadb.com/kb/en/server-status-variables/#connection_errors_internal
 Handler_read_first%Number of requests to read the first row from an index<br>&#9888;&nbsp;&nbsp;A high value indicates many full index scans%https://mariadb.com/kb/en/server-status-variables/#handler_read_first
+Handler_read_key%Number of row read requests based on an index value.<br>A high value indicates indexes are regularly being used, which is usually positive%https://mariadb.com/kb/en/server-status-variables/#handler_read_key
 Handler_read_rnd%Number of requests to read a row based on its position<br>&#9888;&nbsp;&nbsp;If this value is high, you may not be using joins that don't use indexes properly, or be doing many full table scans%https://mariadb.com/kb/en/server-status-variables/#handler_read_rnd
 Max_statement_time_exceeded%Number of queries that exceeded the execution time specified by <code>max_statement_time</code>.%https://mariadb.com/kb/en/server-status-variables/#max_statement_time_exceeded
 Max_used_connections%The maximum number of connections that have been in use simultaneously since the server started%https://mariadb.com/kb/en/server-status-variables/#max_used_connections
