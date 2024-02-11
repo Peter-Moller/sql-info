@@ -54,7 +54,7 @@ SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
 LinkReferer='target="_blank" rel="noopener noreferrer"'
-Version="2024-02-11.1"
+Version="2024-02-11.2"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -689,18 +689,21 @@ Uptime%The number of seconds that the server has been up%https://mariadb.com/kb/
     SQLStatusStr="        <tr><th colspan=\"2\">SQL status</th></tr>
         <tr><td colspan=\"2\">
             <table>
-                <tr><td><b>Variable</b></td><td><b>Value</b></td><td><b>Explanation</b></td><td><b>Read more</b></td></tr>$NL"
+                <tr><td><b>Variable</b></td><td align=\"right\"><b>Value, absolute</b></td><td align=\"right\"><b>Value / hour</b></td><td><b>Explanation</b></td><td><b>Read more</b></td></tr>$NL"
     while IFS="%" read VAR EXPLANATION READMORE
     do
         EVALUATION=""
-        VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"
+        VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"  # Ex: VALUE=35,862,850
         if [ "$VAR" = "Uptime" ]; then
             UptimeH="$(time_convert "${VALUE//,/}" | sed 's/ [0-9]* sec//')"                                                # Ex: UptimeH='2 days 6 hours 59 min'
             ExplAddendum="<br>($VALUE seconds = $UptimeH)"
+            ValuePerHourStr=""
         else
             ExplAddendum=""
+            ValuePerHour="$(( $(echo "${VALUE//,/}") / DaemonUptimeH))"                                                     # Ex: ValuePerHour=459882
+            ValuePerHourStr="$(printf "%'d" $ValuePerHour)"                                                                 # Ex: ValuePerHourStr=459,882
         fi
-        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td><i>$EXPLANATION $ExplAddendum</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
+        SQLStatusStr+="                <tr><td><pre>$VAR</pre></td><td align=\"right\"><code>$VALUE</code></td><td align=\"right\"><code>$ValuePerHourStr</code></td><td><i>$EXPLANATION $ExplAddendum</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
     done <<< "$InterestingStatus"
     SQLStatusReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-status-variables/" '$LinkReferer'>Server Status Variables</a> <span class="glyphicon">&#xe164;</span>.</i></p>'
     SQLStatusStr+="        </table>$SQLStatusReadMoreStr</td></tr>$NL"
