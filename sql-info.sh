@@ -54,7 +54,7 @@ SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
 LinkReferer='target="_blank" rel="noopener noreferrer"'
-Version="2024-02-11.2"
+Version="2024-02-12.1"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -694,6 +694,10 @@ Uptime%The number of seconds that the server has been up%https://mariadb.com/kb/
     do
         EVALUATION=""
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SELECT FORMAT(VARIABLE_VALUE, 0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = '$VAR';")"  # Ex: VALUE=35,862,850
+        # Deal with situations where we do not get a value at all:
+        if [ -z $VALUE ]; then
+            VALUE=0
+        fi
         if [ "$VAR" = "Uptime" ]; then
             UptimeH="$(time_convert "${VALUE//,/}" | sed 's/ [0-9]* sec//')"                                                # Ex: UptimeH='2 days 6 hours 59 min'
             ExplAddendum="<br>($VALUE seconds = $UptimeH)"
