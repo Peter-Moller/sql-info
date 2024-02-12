@@ -54,7 +54,7 @@ SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
 LinkReferer='target="_blank" rel="noopener noreferrer"'
-Version="2024-02-12.2"
+Version="2024-02-12.3"
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -634,8 +634,8 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
     while IFS=";" read VAR EXPLANATION READMORE
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
-        # If VALUE is only numbers, present it with thousand separator
-        if [ -z "${VALUE//[0-9]/}" ]; then
+        # If VALUE is only numbers, present it with thousand separator (unless we are looking ar 'port' in which thousands separator is silly)
+        if [ -z "${VALUE//[0-9]/}" ] && [ ! "$VAR" = "port" ]; then
             VALUE="$(printf "%'d" $VALUE)"
         fi
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
