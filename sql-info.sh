@@ -3,7 +3,7 @@
 # 2024-01-30 / Peter Möller
 # Department of Computer Science, Lund University
 
-# Comment strings comes from https://patorjk.com/software/taag/#p=display&f=Graffiti&t=Type%20Something%20
+# Comment strings comes from https://patorjk.com/software/taag/#p=display&f=Doom&t=Comment
 
 
 # Read nessesary settings file. Exit if it’s not found
@@ -634,6 +634,10 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
     while IFS=";" read VAR EXPLANATION READMORE
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
+        # If VALUE is only numbers, present it with thousand separator
+        if [ -z "${VALUE//[0-9]/}" ]; then
+            VALUE="$(printf "%'d" $VALUE)"
+        fi
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
             SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
         else
