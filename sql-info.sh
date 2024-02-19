@@ -236,11 +236,11 @@ get_daemon_info() {
     RunningDaemonLine="$(ps -eo uid,pid,ppid,cmd | grep -Ei "\b[m]ysqld\b|\b[m]ariadbd\b" | awk '{print $1" "$2" "$3" "$4}')"   # Ex:  RunningDaemonLine='27 1601 1276 /usr/libexec/mysqld'
     # Only do the following if we find a running database daemon
     if [ -n "$RunningDaemonLine" ]; then
-        RunningDaemonPID="$(echo "$RunningDaemonLine" | awk '{print $2}')"                                            # Ex: RunningDaemonPID=58310
-        RunningDaemonMemRSS="$(ps --no-headers -o rss:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemRSS=398
-        RunningDaemonMemVSZ="$(ps --no-headers -o vsz:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"    # Ex: RunningDaemonMemVSZ=1920
-        RunningDaemonPPID="$(echo "$RunningDaemonLine" | awk '{print $3}')"                                           # Ex: RunningDaemonPPID=58288
-        RunningDaemonPPIDCommand="$(ps -p $RunningDaemonPPID -o cmd= 2>/dev/null | awk '{print $1}')"                 # Ex: RunningDaemonPPIDCommand=/usr/bin/containerd-shim-runc-v2
+        RunningDaemonPID="$(echo "$RunningDaemonLine" | awk '{print $2}')"                                             # Ex: RunningDaemonPID=58310
+        RunningDaemonMemRSS="$(ps --no-headers -o rss:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"     # Ex: RunningDaemonMemRSS=398
+        RunningDaemonMemVSZ="$(ps --no-headers -o vsz:8 $RunningDaemonPID | awk '{print $1/1024}' | cut -d\. -f1)"     # Ex: RunningDaemonMemVSZ=1920
+        RunningDaemonPPID="$(echo "$RunningDaemonLine" | awk '{print $3}')"                                            # Ex: RunningDaemonPPID=58288
+        RunningDaemonPPIDCommand="$(ps -p $RunningDaemonPPID -o cmd= 2>/dev/null | awk '{print $1}')"                  # Ex: RunningDaemonPPIDCommand=/usr/bin/containerd-shim-runc-v2
         if [ -n "$(echo "$RunningDaemonPPIDCommand" | grep -Eo "containerd")" ]; then
             Dockers="$(docker ps | grep -Ev "^CONTAINER" | awk '{print $NF}')"
             # Ex: Dockers='moodledb
@@ -248,25 +248,33 @@ get_daemon_info() {
             while read DOCKER
             do
                 if [ -n "$(docker top $DOCKER | grep -E "\b$RunningDaemonPID\b")" ]; then
-                    RunningDocker="$DOCKER"                                                                           # Ex: RunningDocker=moodledb
+                    RunningDocker="$DOCKER"                                                                            # Ex: RunningDocker=moodledb
                     RunningDockerStr="&nbsp;<i>(running inside docker <code>$RunningDocker</code>)</i>"
                     break
                 fi
             done <<< "$Dockers"
+            # Deal with docker internal only network:
+            if [ -n "$RunningDocker" ]; then
+                RunningContainerID=$(docker ps | grep $RunningDocker | awk '{print $1}')                               # Ex: RunningContainerID=0f552df2da7f
+                RunningContainerPID=$(docker inspect --format '{{.State.Pid}}' $RunningContainerID)                    # Ex: RunningContainerPID=2567
+                RunningContainerInternalNetwork="$(nsenter -t $RunningContainerPID -n ss -ltn | grep "$Port")"
+                # Ex: RunningContainerInternalNetwork='LISTEN  0        80               0.0.0.0:3306           0.0.0.0:*
+                #                                      LISTEN  0        80                  [::]:3306              [::]:*              '
+            fi
         fi
-        RunningDaemonUID="$(echo "$RunningDaemonLine" | awk '{print $1}')"                                            # Ex: RunningDaemonUID=999
-        RunningDaemonUser="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f1)"                                   # Ex: RunningDaemonUser=systemd-coredump
-        RunningDaemonName="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f5)"                                   # Ex: RunningDaemonName='systemd Core Dumper'
-        RunningDaemon="$(echo "$RunningDaemonLine" | awk '{print $NF}')"                                              # Ex: RunningDaemon=mariadbd
-        RunningDaemonSecs="$(ps -p $RunningDaemonPID -o etimes= 2>/dev/null)"                                         # Ex: RunningDaemonSecs=' 112408'
-        RunningDaemonTimeH="$(time_convert $RunningDaemonSecs | sed 's/ [0-9]* sec$//')"                              # Ex: RunningDaemonTimeH='1 days 9 hours 19 min'
+        RunningDaemonUID="$(echo "$RunningDaemonLine" | awk '{print $1}')"                                             # Ex: RunningDaemonUID=999
+        RunningDaemonUser="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f1)"                                    # Ex: RunningDaemonUser=systemd-coredump
+        RunningDaemonName="$(/bin/getent passwd "$RunningDaemonUID" | cut -d: -f5)"                                    # Ex: RunningDaemonName='systemd Core Dumper'
+        RunningDaemon="$(echo "$RunningDaemonLine" | awk '{print $NF}')"                                               # Ex: RunningDaemon=mariadbd
+        RunningDaemonSecs="$(ps -p $RunningDaemonPID -o etimes= 2>/dev/null)"                                          # Ex: RunningDaemonSecs=' 112408'
+        RunningDaemonTimeH="$(time_convert $RunningDaemonSecs | sed 's/ [0-9]* sec$//')"                               # Ex: RunningDaemonTimeH='1 days 9 hours 19 min'
         #RunningDaemonStartTime="$(ps -p $RunningDaemonPID -o lstart=)"                                                # Ex: RunningDaemonStartTime='Mon Jan 29 07:43:45 2024'
-        RunningDaemonStartTime="$(date +%F" "%T -d @"$(($(date +%s) - $(ps -p $RunningDaemonPID -o etimes=)))")"      # Ex: RunningDaemonStartTime='2024-01-29 07:43:45'
+        RunningDaemonStartTime="$(date +%F" "%T -d @"$(($(date +%s) - $(ps -p $RunningDaemonPID -o etimes=)))")"       # Ex: RunningDaemonStartTime='2024-01-29 07:43:45'
     fi
-    UptimeSince="$(uptime -s)"                                                                                    # Ex: UptimeSince='2024-01-29 04:06:33'
+    UptimeSince="$(uptime -s)"                                                                                         # Ex: UptimeSince='2024-01-29 04:06:33'
 
     # Get the port info:
-    Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')      # Ex: Port=3306
+    Port=$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE 'port';" | awk '{print $2}')        # Ex: Port=3306
     # Get open ports:
     # lsof -i:3306 +c15
     # COMMAND       PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
@@ -282,16 +290,22 @@ get_daemon_info() {
     #                   docker-proxy 1639 root IPv6 TCP *:mysql (LISTEN)'
 
     # Create the table part:
-    OpenConnectionTblPart="        <tr><td>Network port:</td><td><code>$Port</code>:
-        <table>
-            <tr><td><b>Command</b></td><td><b>PID</b></td><td><b>User</b></td><td><b>Type</b></td><td><b>Node</b></td><td><b>Name</b></td></tr>"
-    while read -r Command PID User Type Node Name
-    do
-        OpenConnectionTblPart+="            <tr><td>$Command</td><td>$PID</td><td>$User</td><td>$Type</td><td>$Node</td><td>$Name</td></tr>$NL"
-    done <<< "$OpenSQLPorts"
-    # Ex: OpenConnectionTblPart='<tr><td>docker-proxy</td><td>1629</td><td>root</td><td>IPv4</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>
-    #                            <tr><td>docker-proxy</td><td>1639</td><td>root</td><td>IPv6</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>'
-    OpenConnectionTblPart+="        </table></td></tr>"
+    if [ -n "$OpenSQLPorts" ]; then
+        OpenConnectionTblPart="        <tr><td>Network port:</td><td><code>$Port</code>:
+            <table>
+                <tr><td><b>Command</b></td><td><b>PID</b></td><td><b>User</b></td><td><b>Type</b></td><td><b>Node</b></td><td><b>Name</b></td></tr>"
+        while read -r Command PID User Type Node Name
+        do
+            OpenConnectionTblPart+="            <tr><td>$Command</td><td>$PID</td><td>$User</td><td>$Type</td><td>$Node</td><td>$Name</td></tr>$NL"
+        done <<< "$OpenSQLPorts"
+        # Ex: OpenConnectionTblPart='<tr><td>docker-proxy</td><td>1629</td><td>root</td><td>IPv4</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>
+        #                            <tr><td>docker-proxy</td><td>1639</td><td>root</td><td>IPv6</td><td>TCP</td><td>*:mysql (LISTEN)</td></tr>'
+        OpenConnectionTblPart+="        </table></td></tr>"
+    elif [ -n "$RunningContainerInternalNetwork" ]; then
+        OpenConnectionTblPart="        <tr><td>Network port:</td><td><code>$Port</code>: <i>network is docker internal only!</i></td></tr>"
+    else
+        OpenConnectionTblPart="        <tr><td>Network port:</td><td><i>No information about network port found!</i></td></tr>"
+    fi
 
 
     # Assemble the DaemonInfoStr
