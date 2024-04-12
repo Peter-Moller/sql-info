@@ -156,7 +156,7 @@ platform_info() {
     # Are we in a Virtual environment? This one is a bit tricky since there are many ways to cover this.
     # Read this for more info: http://unix.stackexchange.com/questions/89714/easy-way-to-determine-virtualization-technology
     if type -p dmesg >/dev/null; then
-        VMenv="$(sudo dmesg 2>/dev/null | grep -i " Hypervisor detected: " 2>/dev/null | cut -d: -f2 | sed 's/^ *//')"      # Ex: VMenv='VMware'
+        VMenv="$(dmesg 2>/dev/null | grep -i " Hypervisor detected: " 2>/dev/null | cut -d: -f2 | sed 's/^ *//')"           # Ex: VMenv='VMware'; needs SUDO
     else
         VMenv=""
     fi
@@ -164,7 +164,7 @@ platform_info() {
     # Get a bit more information if VMenv has a value
     if [ -n "$VMenv" ]; then
         if [ -x /usr/sbin/dmidecode ]; then
-            VMenv="$(sudo /usr/sbin/dmidecode -s system-product-name 2>/dev/null)"                                          # Ex: VMenv='VMware Virtual Platform'
+            VMenv="$(/usr/sbin/dmidecode -s system-product-name 2>/dev/null)"                                               # Ex: VMenv='VMware Virtual Platform'; needs SUDO
         else
             VMenv=""
         fi
@@ -184,7 +184,7 @@ platform_info() {
 
     # Get more platform data
     if [ -x /usr/sbin/dmidecode ]; then
-        PlatformType="$(sudo /usr/sbin/dmidecode -t 2 2>/dev/null | grep -E "^\s*Type:" | cut -d: -f2 | cut -c2-)"          # Ex: PlatformType=Motherboard
+        PlatformType="$(/usr/sbin/dmidecode -t 2 2>/dev/null | grep -E "^\s*Type:" | cut -d: -f2 | cut -c2-)"               # Ex: PlatformType=Motherboard; needs SUDO
     else
         PlatformType=""
     fi
@@ -199,7 +199,7 @@ platform_info() {
     # Get RAM
     RAM="$(free -gh | grep -Ei "^mem:" | awk '{print $2}' | sed 's/Gi/ GiB/')"                                              # Ex: RAM='15 GiB'
     #RAM=$(grep -E -i "^MemTotal" /proc/meminfo | awk '{print $2}')                                                          # Ex: RAM=16349556
-    RAMAvailable="$(echo "scale=1; ($(egrep "MemAvailable:" /proc/meminfo | awk '{print $2}')) / 1048576" | bc)"            # Ex: RAMAvailable=14.3
+    RAMAvailable="$(echo "scale=1; ($(grep "MemAvailable:" /proc/meminfo | awk '{print $2}')) / 1048576" | bc)"             # Ex: RAMAvailable=14.3
 
     # Get disk details:
     DFStr="$(df -k --output=source,fstype,size,used,avail,pcent "$DB_ROOT" | awk 'NR>1')"                                   # Ex: DFStr='/dev/mapper/vg1-data xfs  314517508 201063872 113453636  64%'
@@ -617,6 +617,10 @@ get_storage_engines() {
 #  \____/   \_/\_\ \_____/      \__/    \__,_| |_|    |_|  \__,_| |_.__/  |_|  \___| |___/
 
 get_sql_variables() {
+    # Get interesting SQL variables. There are 3 fields, separater by ';'
+    # 1. Variable
+    # 2. Explanation
+    # 3. URL to “Server System Variables” (https://mariadb.com/kb/en/server-system-variables/)
     InterestingVariables="binlog_expire_logs_seconds;The binary log expiration period in seconds;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_expire_logs_seconds
 binlog_file_cache_size;Size of in-memory cache that is allocated when reading binary log and relay log files;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#binlog_file_cache_size
 collation_connection;Collation used for the connection character set;https://mariadb.com/kb/en/server-system-variables/#collation_connection
@@ -630,6 +634,7 @@ hostname;The server sets this variable to the server host name at startup;https:
 innodb_file_per_table;ON = new InnoDB tables are created with their own InnoDB file-per-table tablespaces<br>OFF = new tables are created in the InnoDB system tablespace instead<br>Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default;https://mariadb.com/kb/en/innodb-system-variables/#innodb_file_per_table
 join_buffer_size;Minimum size in bytes of the buffer used for queries that cannot use an index, and instead perform a full table scan;https://mariadb.com/kb/en/server-system-variables/#join_buffer_size
 log_slow_query;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/server-system-variables/#log_slow_query
+log_bin;Whether binary logging is enabled or not;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#log_bin
 log_slow_query_file;Name of the slow query log file;https://mariadb.com/kb/en/server-system-variables/#log_slow_query_file
 log_slow_query_time;If a query takes longer than this many seconds to execute (microseconds can be specified too), the query is logged to the slow query log.<br>Should be 1-5 seconds (if enabled);https://mariadb.com/kb/en/server-system-variables/#log_slow_query_time
 performance_schema;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/performance-schema-system-variables/#performance_schema
@@ -677,6 +682,10 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
 #  /\__/ / \ \/' / | |____    /\__/ / | |_  | (_| | | |_  | |_| | \__ \
 #  \____/   \_/\_\ \_____/    \____/   \__|  \__,_|  \__|  \__,_| |___/
 get_sql_status() {
+    # Get interesting SQL status information. There are 3 fields, separated by '%'
+    # 1. Status variable name
+    # 2. Explanation
+    # 3. URL to “Server Status Variables” (https://mariadb.com/kb/en/server-status-variables)
     InterestingStatus="Aborted_clients%The number of connections that were aborted because the client died without closing the connection properly%https://mariadb.com/kb/en/server-status-variables/#aborted_clients
 Aborted_connects%The number of failed attempts to connect to the MySQL server%https://mariadb.com/kb/en/server-status-variables/#aborted_connects
 Compression%Whether the client connection uses compression in the client/server protocol.%https://mariadb.com/kb/en/server-status-variables/#compression
