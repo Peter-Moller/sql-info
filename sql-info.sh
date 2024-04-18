@@ -653,14 +653,14 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
     while IFS=";" read VAR EXPLANATION READMORE
     do
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
-        # If VALUE is only numbers, present it with thousand separator (unless we are looking ar 'port' in which thousands separator is silly)
-        if [ -z "${VALUE//[0-9]/}" ] && [ ! "$VAR" = "port" ]; then
-            VALUE="$(printf "%'d" $VALUE)"
-        fi
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
             SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
         else
             SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
+        fi
+        # If VALUE is only numbers, present it with thousand separator (unless we are looking ar 'port' in which thousands separator is silly)
+        if [ -z "${VALUE//[0-9]/}" ] && [ ! "$VAR" = "port" ]; then
+            VALUE="$(printf "%'d" $VALUE)"
         fi
     done <<< "$InterestingVariables"
     SQLVariablesReadMoreStr='<br><p><i>Read about <a href="https://mariadb.com/kb/en/server-system-variables/" '$LinkReferer'>Server System Variables</a> <span class="glyphicon">&#xe164;</span>.</i></p>'
