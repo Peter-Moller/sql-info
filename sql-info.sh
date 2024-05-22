@@ -27,7 +27,7 @@
 
 # Must set SCP ahead of reading the settings file in order to be correct
 SCP=false
-
+set -x
 if [ -r ~/.sql_info.settings ]; then
     source ~/.sql_info.settings
 else
@@ -632,6 +632,8 @@ general_log_file;The name of the general query log file;https://mariadb.com/kb/e
 have_ssl;YES if <code>mysqld</code> supports SSL connections. DISABLED if server is compiled with SSL support, but not started with appropriate connection-encryption options;https://mariadb.com/kb/en/ssltls-system-variables/#have_ssl
 hostname;The server sets this variable to the server host name at startup;https://mariadb.com/kb/en/server-system-variables/#hostname
 innodb_file_per_table;ON = new InnoDB tables are created with their own InnoDB file-per-table tablespaces<br>OFF = new tables are created in the InnoDB system tablespace instead<br>Deprecated in MariaDB 11.0 as there's no benefit to setting to OFF, the original InnoDB default;https://mariadb.com/kb/en/innodb-system-variables/#innodb_file_per_table
+innodb_buffer_pool_size;InnoDB buffer pool size in bytes. The primary value to adjust on a database server with entirely/primarily InnoDB tables, can be set up to 80% of the total memory in these environments;https://mariadb.com/kb/en/innodb-system-variables/#innodb_buffer_pool_size
+innodb_page_size;Specifies the page size in bytes for all InnoDB tablespaces. The default, 16k, is suitable for most uses;https://mariadb.com/kb/en/innodb-system-variables/#innodb_page_size
 join_buffer_size;Minimum size in bytes of the buffer used for queries that cannot use an index, and instead perform a full table scan;https://mariadb.com/kb/en/server-system-variables/#join_buffer_size
 log_slow_query;<code>0</code>=disable, <code>1</code>=enable;https://mariadb.com/kb/en/server-system-variables/#log_slow_query
 log_bin;Whether binary logging is enabled or not;https://mariadb.com/kb/en/replication-and-binary-log-system-variables/#log_bin
@@ -655,6 +657,9 @@ version_ssl_library;The version of the TLS library that is being used;https://ma
         VALUE="$($SQLCommand -u$SQLUser -p"$DATABASE_PASSWORD" -NBe "SHOW VARIABLES LIKE '$VAR';" | awk '{print $2}')"
         if [ "$VAR" = "binlog_expire_logs_seconds" ] && [ -n "$VALUE" ]; then
             SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code> <i>(=$(time_convert $VALUE))</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
+        elif [ "$VAR" = "innodb_buffer_pool_size" ] && [ -n "$VALUE" ]; then
+            VALUEtemp="$(numfmt --to=iec-i --format "%.1f" $VALUE | sed 's/Ki/ KiB/; s/Mi/ MiB/; s/Gi/ GiB/; s/[0-9]$/& Byte/')"  # Ex: VALUEtemp='3.0 GiB'
+            SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$(printf "%'d" $VALUE)</code> <i>(=$VALUEtemp)</i></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
         else
             SQLVariableStr+="                <tr><td><pre>$VAR</pre></td><td><code>$VALUE</code></td><td><i>$EXPLANATION</i></td><td><a href=\"$READMORE\" $LinkReferer>&#128214;</a> <span class="glyphicon">&#xe164;</span></td></tr>$NL"
         fi
@@ -834,6 +839,7 @@ assemble_web_page() {
         echo '		    <tr><th colspan="2">Performance</th></tr>' >> "$EmailTempFile"
         echo '		    <tr><td>MariaDB Internal Optimizations</td><td><a href="https://mariadb.com/kb/en/mariadb-internal-optimizations/" '$LinkReferer'>https://mariadb.com/kb/en/mariadb-internal-optimizations/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
         echo '		    <tr><td>MariaDB Memory Allocation</td><td><a href="https://mariadb.com/kb/en/mariadb-memory-allocation/" '$LinkReferer'>https://mariadb.com/kb/en/mariadb-memory-allocation/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
+        echo '		    <tr><td>MariaDB Enterprise Server Configure the InnoDB Buffer Pool</td><td><a href="https://mariadb.com/docs/server/storage-engines/innodb/operations/configure-buffer-pool/" '$LinkReferer'>https://mariadb.com/docs/server/storage-engines/innodb/operations/configure-buffer-pool/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
         echo '		    <tr><td>Optimizing Tables</td><td><a href="https://mariadb.com/kb/en/optimizing-tables/" '$LinkReferer'>https://mariadb.com/kb/en/optimizing-tables/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
         echo '		    <tr><td><code>MySQLTuner.pl</code></td><td><a href="https://github.com/major/MySQLTuner-perl" '$LinkReferer'>https://github.com/major/MySQLTuner-perl</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
         echo '		    <tr><td>Optimization and Tuning</td><td><a href="https://mariadb.com/kb/en/optimization-and-tuning/" '$LinkReferer'>https://mariadb.com/kb/en/optimization-and-tuning/</a> <span class="glyphicon">&#xe164;</span></td></tr>' >> "$EmailTempFile"
