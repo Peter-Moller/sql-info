@@ -382,6 +382,21 @@ do_mariadb_check() {
 }
 
 
+# Send a notification to the CS Monitoring System
+cs_notify() {
+    if $Verify && [ "$CSNOTIFY" = 'yes' ] && [ -x /opt/monitoring/bin/notify ]; then
+        NotifyObject='app.mariadb.integritycheck'
+        if [ $ES_mariadb_check -eq 0 ]; then
+            NotifyLevel='GOOD'
+        else
+            NotifyLevel='WARN'
+        fi
+        NotifyMessage="Verification of database done in $DBCheckTime"
+        /opt/monitoring/bin/notify "$NotifyObject" "$NotifyMessage" "$NotifyLevel" 
+    fi
+}
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #  _____            _             _                                                                     _                   
 #  |  _ \          | |           | |                                                                   (_)                  
@@ -962,6 +977,8 @@ get_daemon_info
 # Only present stuff if the daemon *is* running
 if [ -n "$RunningDaemonLine" ]; then
     do_mariadb_check
+
+    cs_notify
 
     get_database_overview
 
