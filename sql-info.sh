@@ -392,14 +392,14 @@ do_mariadb_check() {
 #                          __/ |                                                              __/ |         __/ |
 #                         |___/                                                              |___/         |___/
 cs_notify() {
-    if $Verify && [ "$CSNOTIFY" = 'yes' ] && [ -x /opt/monitoring/bin/notify ]; then
+    if [ "$Verify" = "true" ] && [ "$CSNOTIFY" = "yes" ] && [ -x /opt/monitoring/bin/notify ]; then
         NotifyObject='app.mariadb.integritycheck'
         if [ $ES_mariadb_check -eq 0 ]; then
             NotifyLevel='GOOD'
         else
             NotifyLevel='WARN'
         fi
-        NotifyMessage="Verification of database done in $DBCheckTime"
+        NotifyMessage="Verification of database done in ${DBCheckTime:-0 seconds}"
         /opt/monitoring/bin/notify "$NotifyObject" "$NotifyMessage" "$NotifyLevel" 
     fi
 }
