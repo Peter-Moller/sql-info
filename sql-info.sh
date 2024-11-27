@@ -50,7 +50,7 @@ done
 # Do a color fix (for convenience sake):
 CSS_colorfix="s/jobe_th_bgc/$jobe_th_bgc/g;s/jobe_th_c/$jobe_th_c/g;s/box_h_bgc/$box_h_bgc/g;s/box_h_c/$box_h_c/g"
 NL=$'\n'
-TitleString="Backup report for “$ServerName” on $(date +%F)"
+TitleString="SQL report for “$ServerName” on $(date +%F)"
 SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
