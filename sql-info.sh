@@ -50,6 +50,7 @@ done
 # Do a color fix (for convenience sake):
 CSS_colorfix="s/jobe_th_bgc/$jobe_th_bgc/g;s/jobe_th_c/$jobe_th_c/g;s/box_h_bgc/$box_h_bgc/g;s/box_h_c/$box_h_c/g"
 NL=$'\n'
+TitleString="Backup report for “$ServerName” on $(date +%F)"
 SepatarorStr="&nbsp;&nbsp;&nbsp;&diams;&nbsp;&nbsp;&nbsp;"
 export LC_ALL=en_US.UTF-8
 LastRunFile=~/.sql-info_last_run
@@ -818,7 +819,7 @@ get_last_known_good_data() {
 #                                                                                            |_|              |___/        
 assemble_web_page() {
     # Get the head of the custom report, replace SERVER and DATE
-    curl --silent $ReportHead | sed "s/SERVER/$ServerName/;s/DATE/$(date +%F)/;$CSS_colorfix;s/Backup/SQL/;s/1200/1250/" >> "$EmailTempFile"
+    curl --silent $ReportHead | sed "s/TITLE/$TitleString/;$CSS_colorfix;s/Backup/SQL/;s/1200/1250/" >> "$EmailTempFile"
     # Only continue if it worked
     if grep "SQL report for" "$EmailTempFile" &>/dev/null ; then
         echo "<body>" >> "$EmailTempFile"
